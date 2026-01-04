@@ -75,15 +75,16 @@
     <p id="mensaje"></p>
 
     <script>
-        // --- 🔴 PEGA TU URL DE APPS SCRIPT AQUÍ 🔴 ---
+        // --- 🔴 IMPORTANTE: PEGA TU URL DE GOOGLE SCRIPT AQUÍ 🔴 ---
         var scriptURL = "https://script.google.com/macros/s/AKfycbx418FKibTTq-HHQlkTHjE03PLKA6QuibswQbDEFc5wrDRFkwVnFg8kcNDYE1OVAhW3uw/exec"; 
-        // ---------------------------------------------
+        // -----------------------------------------------------------
 
         function enviar() {
             var msj = document.getElementById("mensaje");
             msj.innerText = "⏳ Enviando...";
 
             var datos = new FormData();
+            // Recogemos todos los datos para enviar a Google Sheets
             datos.append("nombre", document.getElementById("nombre").value);
             datos.append("pedido", document.getElementById("pedido").value);
             datos.append("url_pedido", document.getElementById("url_pedido").value);
@@ -96,8 +97,6 @@
             fetch(scriptURL, { method: 'POST', body: datos })
             .then(response => {
                 msj.innerText = "✅ ¡Guardado!";
-                // Opcional: Limpiar formulario tras guardar
-                // document.querySelectorAll("input, textarea").forEach(el => el.value = "");
                 setTimeout(() => msj.innerText = "", 3000);
             })
             .catch(error => {
@@ -106,18 +105,24 @@
         }
 
         function copiar() {
+            // 1. Cogemos los datos del formulario que te interesan
             var pedido = document.getElementById("pedido").value;
             var urlRev = document.getElementById("url_review").value;
             
-            // Aquí definimos el formato de lo que se copia.
-            // Ejemplo: "Pedido: 123-456 | Review: http..."
-            // Puedes cambiarlo a tu gusto.
-            var textoACopiar = "Pedido: " + pedido + "\nReview: " + urlRev;
+            // 2. Definimos tu PayPal (Oculto en el código, no visible en la web)
+            var miPaypal = "elisagundinmorales@gmail.com";
 
+            // 3. Creamos el texto final ordenado
+            var textoACopiar = "Pedido: " + pedido + "\n" +
+                               "Review: " + urlRev + "\n" +
+                               "PayPal: " + miPaypal;
+
+            // 4. Lo mandamos al portapapeles
             navigator.clipboard.writeText(textoACopiar).then(() => {
-                alert("Copiado al portapapeles:\n" + textoACopiar);
+                // Alerta visual para confirmar qué se ha copiado
+                alert("✅ Copiado al portapapeles:\n\n" + textoACopiar);
             }).catch(err => {
-                alert("Error al copiar");
+                alert("❌ Error al copiar");
             });
         }
     </script>
