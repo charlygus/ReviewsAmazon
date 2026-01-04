@@ -3,55 +3,121 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reviews Amazon</title>
+    <title>Gestión Reviews</title>
     <style>
-        body { font-family: sans-serif; background-color: #f0f2f5; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .contenedor { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 85%; max-width: 400px; text-align: center; }
-        h2 { color: #333; margin-bottom: 20px; }
-        input { width: 100%; padding: 15px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 8px; font-size: 16px; box-sizing: border-box; }
-        button { width: 100%; padding: 15px; background-color: #ff9900; color: white; border: none; border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer; }
-        button:active { background-color: #e48900; }
-        #mensaje { margin-top: 20px; color: #555; font-weight: bold; min-height: 20px;}
+        body { font-family: sans-serif; background-color: #f4f7f6; padding: 20px; max-width: 600px; margin: 0 auto; }
+        h2 { text-align: center; color: #333; }
+        
+        .grupo-input { margin-bottom: 15px; }
+        label { display: block; font-weight: bold; margin-bottom: 5px; color: #555; }
+        input, textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; font-size: 16px; }
+        textarea { height: 80px; resize: vertical; }
+
+        .botones { display: flex; gap: 10px; margin-top: 20px; }
+        
+        button { flex: 1; padding: 15px; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; color: white; }
+        .btn-guardar { background-color: #28a745; } /* Verde */
+        .btn-copiar { background-color: #007bff; } /* Azul */
+        
+        button:active { opacity: 0.8; }
+        #mensaje { text-align: center; margin-top: 15px; font-weight: bold; }
     </style>
 </head>
 <body>
 
-    <div class="contenedor">
-        <h2>📦 Reviews Amazon</h2>
-        <input type="url" id="miInput" placeholder="Pega el enlace de Amazon..." required>
-        <button onclick="enviar()">Guardar Link</button>
-        <p id="mensaje"></p>
+    <h2>📦 Nueva Review</h2>
+
+    <div class="grupo-input">
+        <label>Producto:</label>
+        <input type="text" id="nombre">
     </div>
 
+    <div class="grupo-input">
+        <label>Nº Pedido:</label>
+        <input type="text" id="pedido">
+    </div>
+
+    <div class="grupo-input">
+        <label>URL Pedido:</label>
+        <input type="url" id="url_pedido">
+    </div>
+
+    <div class="grupo-input">
+        <label>Contacto Vendedor:</label>
+        <input type="text" id="contacto">
+    </div>
+
+    <div class="grupo-input">
+        <label>Precio:</label>
+        <input type="number" step="0.01" id="precio">
+    </div>
+
+    <div class="grupo-input">
+        <label>Fecha Review:</label>
+        <input type="date" id="fecha">
+    </div>
+
+    <div class="grupo-input">
+        <label>URL Review:</label>
+        <input type="url" id="url_review">
+    </div>
+
+    <div class="grupo-input">
+        <label>Notas / Comentarios:</label>
+        <textarea id="notas"></textarea>
+    </div>
+
+    <div class="botones">
+        <button class="btn-guardar" onclick="enviar()">💾 Guardar en Sheets</button>
+        <button class="btn-copiar" onclick="copiar()">📋 Copiar Info</button>
+    </div>
+
+    <p id="mensaje"></p>
+
     <script>
+        // --- 🔴 PEGA TU URL DE APPS SCRIPT AQUÍ 🔴 ---
+        var scriptURL = "https://script.google.com/macros/s/AKfycbx418FKibTTq-HHQlkTHjE03PLKA6QuibswQbDEFc5wrDRFkwVnFg8kcNDYE1OVAhW3uw/exec"; 
+        // ---------------------------------------------
+
         function enviar() {
-            var input = document.getElementById("miInput");
             var msj = document.getElementById("mensaje");
-            var urlData = input.value;
-
-            if (!urlData) {
-                msj.innerText = "❌ Pega un enlace primero.";
-                return;
-            }
-
-            msj.innerText = "⏳ Guardando...";
-
-            // -------------------------------------------------------
-            // 👇👇 PEGA AQUÍ TU URL DE GOOGLE APPS SCRIPT 👇👇
-            var scriptURL = "https://script.google.com/macros/s/AKfycbxjZBl_5u01ZsZK3UWJHIkH-WY_gllIaqrvLttumxVqBXiejtlNcFJObqj6Ewnf0uyQLQ/exec"; 
-            // -------------------------------------------------------
+            msj.innerText = "⏳ Enviando...";
 
             var datos = new FormData();
-            datos.append("link", urlData);
+            datos.append("nombre", document.getElementById("nombre").value);
+            datos.append("pedido", document.getElementById("pedido").value);
+            datos.append("url_pedido", document.getElementById("url_pedido").value);
+            datos.append("contacto", document.getElementById("contacto").value);
+            datos.append("precio", document.getElementById("precio").value);
+            datos.append("fecha", document.getElementById("fecha").value);
+            datos.append("url_review", document.getElementById("url_review").value);
+            datos.append("notas", document.getElementById("notas").value);
 
             fetch(scriptURL, { method: 'POST', body: datos })
             .then(response => {
-                msj.innerText = "✅ ¡Guardado en Sheets!";
-                input.value = ""; 
-                setTimeout(() => { msj.innerText = ""; }, 3000);
+                msj.innerText = "✅ ¡Guardado!";
+                // Opcional: Limpiar formulario tras guardar
+                // document.querySelectorAll("input, textarea").forEach(el => el.value = "");
+                setTimeout(() => msj.innerText = "", 3000);
             })
             .catch(error => {
-                msj.innerText = "⚠️ Error de red (pero revisa la hoja).";
+                msj.innerText = "⚠️ Error (verifica la hoja).";
+            });
+        }
+
+        function copiar() {
+            var pedido = document.getElementById("pedido").value;
+            var urlRev = document.getElementById("url_review").value;
+            
+            // Aquí definimos el formato de lo que se copia.
+            // Ejemplo: "Pedido: 123-456 | Review: http..."
+            // Puedes cambiarlo a tu gusto.
+            var textoACopiar = "Pedido: " + pedido + "\nReview: " + urlRev;
+
+            navigator.clipboard.writeText(textoACopiar).then(() => {
+                alert("Copiado al portapapeles:\n" + textoACopiar);
+            }).catch(err => {
+                alert("Error al copiar");
             });
         }
     </script>
