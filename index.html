@@ -1,1 +1,60 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reviews Amazon</title>
+    <style>
+        body { font-family: sans-serif; background-color: #f0f2f5; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .contenedor { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 85%; max-width: 400px; text-align: center; }
+        h2 { color: #333; margin-bottom: 20px; }
+        input { width: 100%; padding: 15px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 8px; font-size: 16px; box-sizing: border-box; }
+        button { width: 100%; padding: 15px; background-color: #ff9900; color: white; border: none; border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer; }
+        button:active { background-color: #e48900; }
+        #mensaje { margin-top: 20px; color: #555; font-weight: bold; min-height: 20px;}
+    </style>
+</head>
+<body>
 
+    <div class="contenedor">
+        <h2>📦 Reviews Amazon</h2>
+        <input type="url" id="miInput" placeholder="Pega el enlace de Amazon..." required>
+        <button onclick="enviar()">Guardar Link</button>
+        <p id="mensaje"></p>
+    </div>
+
+    <script>
+        function enviar() {
+            var input = document.getElementById("miInput");
+            var msj = document.getElementById("mensaje");
+            var urlData = input.value;
+
+            if (!urlData) {
+                msj.innerText = "❌ Pega un enlace primero.";
+                return;
+            }
+
+            msj.innerText = "⏳ Guardando...";
+
+            // -------------------------------------------------------
+            // 👇👇 PEGA AQUÍ TU URL DE GOOGLE APPS SCRIPT 👇👇
+            var scriptURL = "https://script.google.com/macros/s/AKfycbxjZBl_5u01ZsZK3UWJHIkH-WY_gllIaqrvLttumxVqBXiejtlNcFJObqj6Ewnf0uyQLQ/exec"; 
+            // -------------------------------------------------------
+
+            var datos = new FormData();
+            datos.append("link", urlData);
+
+            fetch(scriptURL, { method: 'POST', body: datos })
+            .then(response => {
+                msj.innerText = "✅ ¡Guardado en Sheets!";
+                input.value = ""; 
+                setTimeout(() => { msj.innerText = ""; }, 3000);
+            })
+            .catch(error => {
+                msj.innerText = "⚠️ Error de red (pero revisa la hoja).";
+            });
+        }
+    </script>
+
+</body>
+</html>
