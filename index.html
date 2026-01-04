@@ -4,11 +4,24 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestión Reviews</title>
+    
+    <link rel="icon" type="image/png" href="favicon.png">
+
     <style>
         body { font-family: sans-serif; background-color: #f4f7f6; padding: 20px; max-width: 600px; margin: 0 auto; }
-        h2 { text-align: center; color: #333; }
         
-        .grupo-input { margin-bottom: 15px; }
+        .contenedor-principal { text-align: center; } /* Para centrar logo y titulo */
+        
+        /* Estilo para tu LOGO */
+        .mi-logo {
+            max-width: 150px; /* Tamaño máximo del logo */
+            height: auto;
+            margin-bottom: 10px;
+        }
+
+        h2 { color: #333; margin-top: 5px; }
+        
+        .grupo-input { margin-bottom: 15px; text-align: left; } /* Los inputs alineados a la izq */
         label { display: block; font-weight: bold; margin-bottom: 5px; color: #555; }
         input, textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; font-size: 16px; }
         textarea { height: 80px; resize: vertical; }
@@ -16,8 +29,8 @@
         .botones { display: flex; gap: 10px; margin-top: 20px; }
         
         button { flex: 1; padding: 15px; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; color: white; }
-        .btn-guardar { background-color: #28a745; } /* Verde */
-        .btn-copiar { background-color: #007bff; } /* Azul */
+        .btn-guardar { background-color: #28a745; } 
+        .btn-copiar { background-color: #007bff; } 
         
         button:active { opacity: 0.8; }
         #mensaje { text-align: center; margin-top: 15px; font-weight: bold; }
@@ -25,7 +38,11 @@
 </head>
 <body>
 
-    <h2>📦 Nueva Review</h2>
+    <div class="contenedor-principal">
+        <img src="logo.png" alt="Logo" class="mi-logo">
+        
+        <h2>📦 Nueva Review</h2>
+    </div>
 
     <div class="grupo-input">
         <label>Producto:</label>
@@ -68,23 +85,22 @@
     </div>
 
     <div class="botones">
-        <button class="btn-guardar" onclick="enviar()">💾 Guardar en Sheets</button>
+        <button class="btn-guardar" onclick="enviar()">💾 Guardar</button>
         <button class="btn-copiar" onclick="copiar()">📋 Copiar Info</button>
     </div>
 
     <p id="mensaje"></p>
 
     <script>
-        // --- 🔴 IMPORTANTE: PEGA TU URL DE GOOGLE SCRIPT AQUÍ 🔴 ---
+        // --- 🔴 PEGA TU URL DE APPS SCRIPT AQUÍ 🔴 ---
         var scriptURL = "https://script.google.com/macros/s/AKfycbzdPyE77gPyvIh49rup9ajOZRl5cVpstLj0Ud7FpUAkbECYKHlyeBrGsVbAqNESGP7vtQ/exec"; 
-        // -----------------------------------------------------------
+        // ---------------------------------------------
 
         function enviar() {
             var msj = document.getElementById("mensaje");
             msj.innerText = "⏳ Enviando...";
 
             var datos = new FormData();
-            // Recogemos todos los datos para enviar a Google Sheets
             datos.append("nombre", document.getElementById("nombre").value);
             datos.append("pedido", document.getElementById("pedido").value);
             datos.append("url_pedido", document.getElementById("url_pedido").value);
@@ -105,22 +121,16 @@
         }
 
         function copiar() {
-            // 1. Cogemos los datos del formulario que te interesan
             var pedido = document.getElementById("pedido").value;
             var urlRev = document.getElementById("url_review").value;
-            
-            // 2. Definimos tu PayPal (Oculto en el código, no visible en la web)
             var miPaypal = "elisagundinmorales@gmail.com";
 
-            // 3. Creamos el texto final ordenado
             var textoACopiar = "Pedido: " + pedido + "\n" +
                                "Review: " + urlRev + "\n" +
                                "PayPal: " + miPaypal;
 
-            // 4. Lo mandamos al portapapeles
             navigator.clipboard.writeText(textoACopiar).then(() => {
-                // Alerta visual para confirmar qué se ha copiado
-                alert("✅ Copiado al portapapeles:\n\n" + textoACopiar);
+                alert("✅ Copiado:\n\n" + textoACopiar);
             }).catch(err => {
                 alert("❌ Error al copiar");
             });
