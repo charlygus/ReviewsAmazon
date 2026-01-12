@@ -6,9 +6,7 @@
     <title>Gestión Reviews</title>
     
     <link rel="icon" type="image/png" href="favicon.png">
-
     <link rel="apple-touch-icon" href="icono-192.png">
-
     <link rel="manifest" href="manifest.json">
 
     <meta name="theme-color" content="#ffffff">
@@ -16,7 +14,7 @@
         /* FONDO BLANCO para que el logo se integre bien */
         body { font-family: sans-serif; background-color: #ffffff; padding: 20px; max-width: 600px; margin: 0 auto; }
         
-        /* RESTO DE TU CSS (NO CAMBIA) */
+        /* RESTO DE TU CSS */
         .header { text-align: center; margin-bottom: 20px; }
         .mi-logo { max-width: 180px; height: auto; margin-bottom: 5px; }
         .tabs { display: flex; margin-bottom: 20px; border-bottom: 2px solid #ddd; }
@@ -112,6 +110,15 @@
     <p id="mensaje"></p>
 
     <script>
+        // --- 🟢 SOLUCIÓN TECLADO MÓVIL 🟢 ---
+        // Esto detecta si arrastras el dedo por la pantalla y cierra el teclado
+        document.addEventListener('touchmove', function(e) {
+            if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') {
+                document.activeElement.blur(); // Quita el foco y cierra teclado
+            }
+        });
+        // -------------------------------------
+
         // --- 🔴 PEGA TU URL DE GOOGLE SCRIPT AQUÍ ABAJO 🔴 ---
         var scriptURL = "https://script.google.com/macros/s/AKfycbySTroz945FKGmGP3p-XQb7d-6jLxQ2kYV01ZVEMTGV-MyTTQOTeH3IFr1IutKHm2HM8w/exec"; 
         // -----------------------------------------------------
