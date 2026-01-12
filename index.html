@@ -4,47 +4,42 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestión Reviews</title>
+    
     <link rel="icon" type="image/png" href="favicon.png">
 
+    <link rel="apple-touch-icon" href="icono-192.png">
+
+    <link rel="manifest" href="manifest.json">
+
+    <meta name="theme-color" content="#ffffff">
     <style>
         /* FONDO BLANCO para que el logo se integre bien */
         body { font-family: sans-serif; background-color: #ffffff; padding: 20px; max-width: 600px; margin: 0 auto; }
         
-        /* CABECERA */
+        /* RESTO DE TU CSS (NO CAMBIA) */
         .header { text-align: center; margin-bottom: 20px; }
         .mi-logo { max-width: 180px; height: auto; margin-bottom: 5px; }
-
-        /* PESTAÑAS */
         .tabs { display: flex; margin-bottom: 20px; border-bottom: 2px solid #ddd; }
         .tab { flex: 1; padding: 15px; text-align: center; cursor: pointer; font-weight: bold; color: #666; background: #f8f9fa; border-radius: 8px 8px 0 0; margin-right: 2px; border: 1px solid #ddd; border-bottom: none; }
         .tab.active { background: #007bff; color: white; border-color: #007bff; }
-        
-        /* FORMULARIOS */
         .form-section { display: none; padding: 10px 5px; }
         .form-section.active { display: block; animation: fadeIn 0.3s; }
-
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-
         .grupo-input { margin-bottom: 15px; }
         label { display: block; font-weight: bold; margin-bottom: 5px; color: #333; font-size: 14px; }
         input, textarea { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 16px; background-color: #f9f9f9; }
         textarea { height: 70px; resize: vertical; }
         input:focus, textarea:focus { border-color: #007bff; background-color: #fff; outline: none; }
-
-        /* BOTONES */
         .botones { display: flex; gap: 10px; margin-top: 25px; }
         button { flex: 1; padding: 15px; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; color: white; transition: 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        
-        .btn-guardar { background-color: #28a745; } /* Verde */
-        .btn-copiar { background-color: #17a2b8; } /* Azul Cian */
-        .btn-reset { background-color: #6c757d; flex: 0.4; } /* Gris pequeño */
-
+        .btn-guardar { background-color: #28a745; }
+        .btn-copiar { background-color: #17a2b8; }
+        .btn-reset { background-color: #6c757d; flex: 0.4; }
         button:active { opacity: 0.8; transform: translateY(2px); }
-        
         #mensaje { text-align: center; margin-top: 15px; font-weight: bold; min-height: 20px; color: #333; }
     </style>
 </head>
-<body>
+    <body>
 
     <div class="header">
         <img src="logo.png" alt="Logo" class="mi-logo">
