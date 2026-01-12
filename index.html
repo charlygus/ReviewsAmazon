@@ -7,40 +7,41 @@
     <link rel="icon" type="image/png" href="favicon.png">
 
     <style>
-        body { font-family: sans-serif; background-color: #f4f7f6; padding: 20px; max-width: 600px; margin: 0 auto; }
+        /* FONDO BLANCO para que el logo se integre bien */
+        body { font-family: sans-serif; background-color: #ffffff; padding: 20px; max-width: 600px; margin: 0 auto; }
         
         /* CABECERA */
         .header { text-align: center; margin-bottom: 20px; }
-        .mi-logo { max-width: 150px; height: auto; margin-bottom: 10px; }
+        .mi-logo { max-width: 180px; height: auto; margin-bottom: 5px; }
 
-        /* PESTAÑAS DE NAVEGACIÓN */
+        /* PESTAÑAS */
         .tabs { display: flex; margin-bottom: 20px; border-bottom: 2px solid #ddd; }
-        .tab { flex: 1; padding: 15px; text-align: center; cursor: pointer; font-weight: bold; color: #666; background: #e9ecef; border-radius: 8px 8px 0 0; margin-right: 2px; }
-        .tab.active { background: #007bff; color: white; border-bottom: none; }
+        .tab { flex: 1; padding: 15px; text-align: center; cursor: pointer; font-weight: bold; color: #666; background: #f8f9fa; border-radius: 8px 8px 0 0; margin-right: 2px; border: 1px solid #ddd; border-bottom: none; }
+        .tab.active { background: #007bff; color: white; border-color: #007bff; }
         
-        /* FORMULARIO */
-        .form-section { display: none; background: white; padding: 20px; border-radius: 0 0 8px 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
-        .form-section.active { display: block; }
+        /* FORMULARIOS */
+        .form-section { display: none; padding: 10px 5px; }
+        .form-section.active { display: block; animation: fadeIn 0.3s; }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
         .grupo-input { margin-bottom: 15px; }
-        label { display: block; font-weight: bold; margin-bottom: 5px; color: #555; font-size: 14px; }
-        input, textarea { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-size: 16px; }
+        label { display: block; font-weight: bold; margin-bottom: 5px; color: #333; font-size: 14px; }
+        input, textarea { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 16px; background-color: #f9f9f9; }
         textarea { height: 70px; resize: vertical; }
+        input:focus, textarea:focus { border-color: #007bff; background-color: #fff; outline: none; }
 
         /* BOTONES */
         .botones { display: flex; gap: 10px; margin-top: 25px; }
-        button { flex: 1; padding: 15px; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; color: white; transition: 0.2s; }
+        button { flex: 1; padding: 15px; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; color: white; transition: 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         
-        .btn-guardar { background-color: #28a745; }
-        .btn-copiar { background-color: #17a2b8; }
-        .btn-reset { background-color: #6c757d; flex: 0.5; } /* Botón gris más pequeño */
+        .btn-guardar { background-color: #28a745; } /* Verde */
+        .btn-copiar { background-color: #17a2b8; } /* Azul Cian */
+        .btn-reset { background-color: #6c757d; flex: 0.4; } /* Gris pequeño */
 
-        button:active { opacity: 0.8; transform: scale(0.98); }
+        button:active { opacity: 0.8; transform: translateY(2px); }
         
-        #mensaje { text-align: center; margin-top: 15px; font-weight: bold; min-height: 20px; }
-        
-        /* Ocultar elementos visualmente pero mantenerlos en DOM si es necesario */
-        .hidden { display: none; }
+        #mensaje { text-align: center; margin-top: 15px; font-weight: bold; min-height: 20px; color: #333; }
     </style>
 </head>
 <body>
@@ -60,7 +61,7 @@
             <input type="text" id="n_nombre">
         </div>
         <div class="grupo-input">
-            <label>Nº Pedido (Clave):</label>
+            <label>Nº Pedido (Importante):</label>
             <input type="text" id="n_pedido" placeholder="Ej: 123-456789-000">
         </div>
         <div class="grupo-input">
@@ -88,12 +89,12 @@
 
     <div id="form-actualizar" class="form-section">
         <p style="text-align:center; color:#666; font-size:14px; margin-bottom:20px;">
-            Introduce el Nº de Pedido original para añadir los datos de la review.
+            Introduce el Nº de Pedido para añadir la review.
         </p>
 
         <div class="grupo-input">
-            <label>Nº Pedido (El mismo de antes):</label>
-            <input type="text" id="a_pedido" placeholder="Ej: 123-456789-000">
+            <label>Nº Pedido (Buscador):</label>
+            <input type="text" id="a_pedido" placeholder="Pega aquí el pedido original">
         </div>
 
         <div class="grupo-input">
@@ -109,18 +110,17 @@
         <div class="botones">
             <button class="btn-reset" onclick="limpiarCampos('actualizar')">🧹</button>
             <button class="btn-guardar" onclick="enviarActualizacion()">🔄 Actualizar</button>
-            <button class="btn-copiar" onclick="copiarInfo()">📋 Copiar</button>
+            <button class="btn-copiar" onclick="copiarInfo()">📋 Copiar Info</button>
         </div>
     </div>
 
     <p id="mensaje"></p>
 
     <script>
-        // --- 🔴 PEGA TU URL DE GOOGLE SCRIPT AQUÍ 🔴 ---
-        var scriptURL = "AQUI_TU_URL_LARGA_DEL_SCRIPT"; 
-        // ---------------------------------------------
+        // --- 🔴 PEGA TU URL DE GOOGLE SCRIPT AQUÍ ABAJO 🔴 ---
+        var scriptURL = "AQUI_TU_URL_LARGA_DE_APPS_SCRIPT"; 
+        // -----------------------------------------------------
 
-        // Función para cambiar de pestaña
         function cambiarModo(modo) {
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.form-section').forEach(f => f.classList.remove('active'));
@@ -135,7 +135,6 @@
             }
         }
 
-        // Función para limpiar campos (Manual y Automática)
         function limpiarCampos(modo) {
             if (modo === 'nuevo') {
                 document.getElementById('n_nombre').value = "";
@@ -151,85 +150,73 @@
             }
         }
 
-        // ENVIAR NUEVO PEDIDO
         function enviarNuevo() {
             var msj = document.getElementById("mensaje");
             var pedido = document.getElementById("n_pedido").value;
-
             if (!pedido) { msj.innerText = "❌ Falta el Nº de Pedido"; return; }
 
-            msj.innerText = "⏳ Guardando nuevo pedido...";
-
+            msj.innerText = "⏳ Guardando...";
             var datos = new FormData();
-            datos.append("accion", "nuevo"); // Le decimos al script que es NUEVO
+            datos.append("accion", "nuevo");
             datos.append("nombre", document.getElementById("n_nombre").value);
             datos.append("pedido", pedido);
             datos.append("url_pedido", document.getElementById("n_url_pedido").value);
             datos.append("contacto", document.getElementById("n_contacto").value);
             datos.append("precio", document.getElementById("n_precio").value);
             datos.append("notas", document.getElementById("n_notas").value);
-
             enviarAGoogle(datos, "nuevo");
         }
 
-        // ENVIAR ACTUALIZACIÓN (REVIEW)
         function enviarActualizacion() {
             var msj = document.getElementById("mensaje");
             var pedido = document.getElementById("a_pedido").value;
+            if (!pedido) { msj.innerText = "❌ Falta el Nº de Pedido"; return; }
 
-            if (!pedido) { msj.innerText = "❌ Falta el Nº de Pedido para buscar"; return; }
-
-            msj.innerText = "⏳ Buscando y actualizando...";
-
+            msj.innerText = "⏳ Actualizando...";
             var datos = new FormData();
-            datos.append("accion", "actualizar"); // Le decimos al script que es ACTUALIZAR
+            datos.append("accion", "actualizar");
             datos.append("pedido", pedido);
             datos.append("fecha", document.getElementById("a_fecha").value);
             datos.append("url_review", document.getElementById("a_url_review").value);
-
             enviarAGoogle(datos, "actualizar");
         }
 
-        // FUNCIÓN GENÉRICA DE ENVÍO
         function enviarAGoogle(formData, modo) {
             var msj = document.getElementById("mensaje");
-            
             fetch(scriptURL, { method: 'POST', body: formData })
             .then(response => response.text())
             .then(texto => {
                 if (texto.includes("No encontrado")) {
-                    msj.innerText = "⚠️ Error: No existe ese Nº de Pedido en la hoja.";
+                    msj.innerText = "⚠️ No existe ese Pedido. Revisa el número.";
                 } else {
-                    msj.innerText = "✅ ¡Operación realizada!";
-                    // Limpieza Automática tras éxito
+                    msj.innerText = "✅ ¡Hecho!";
+                    // Limpieza automática tras 1.5 segundos
                     setTimeout(() => { 
                         limpiarCampos(modo); 
                         msj.innerText = "";
-                    }, 2000);
+                    }, 1500);
                 }
             })
-            .catch(error => {
-                msj.innerText = "❌ Error de conexión.";
-            });
+            .catch(error => { msj.innerText = "❌ Error de conexión."; });
         }
 
-        // COPIAR INFO (Solo disponible en la pestaña 2)
         function copiarInfo() {
             var pedido = document.getElementById("a_pedido").value;
             var urlRev = document.getElementById("a_url_review").value;
+            // PayPal oculto
             var miPaypal = "elisagundinmorales@gmail.com";
 
             if(!pedido || !urlRev) {
-                alert("Rellena Nº Pedido y URL Review antes de copiar.");
+                alert("Primero rellena el Nº de Pedido y la URL de la Review.");
                 return;
             }
 
-            var textoACopiar = "Pedido: " + pedido + "\n" +
-                               "Review: " + urlRev + "\n" +
-                               "PayPal: " + miPaypal;
+            var texto = "Pedido: " + pedido + "\n" +
+                        "Review: " + urlRev + "\n" +
+                        "PayPal: " + miPaypal;
 
-            navigator.clipboard.writeText(textoACopiar).then(() => {
-                alert("✅ Copiado al portapapeles:\n\n" + textoACopiar);
+            navigator.clipboard.writeText(texto).then(() => {
+                alert("✅ DATOS COPIADOS:\n\n" + texto);
             });
         }
     </script>
