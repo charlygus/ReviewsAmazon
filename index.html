@@ -4,137 +4,232 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestión Reviews</title>
-    
     <link rel="icon" type="image/png" href="favicon.png">
 
     <style>
         body { font-family: sans-serif; background-color: #f4f7f6; padding: 20px; max-width: 600px; margin: 0 auto; }
         
-        .contenedor-principal { text-align: center; } /* Para centrar logo y titulo */
-        
-        /* Estilo para tu LOGO */
-        .mi-logo {
-    max-width: 150px;
-    height: auto;
-    margin-bottom: 10px;
-    /* Esta línea intenta mezclar el blanco del logo con el fondo de la web */
-    mix-blend-mode: multiply; 
-}
+        /* CABECERA */
+        .header { text-align: center; margin-bottom: 20px; }
+        .mi-logo { max-width: 150px; height: auto; margin-bottom: 10px; }
 
-        h2 { color: #333; margin-top: 5px; }
+        /* PESTAÑAS DE NAVEGACIÓN */
+        .tabs { display: flex; margin-bottom: 20px; border-bottom: 2px solid #ddd; }
+        .tab { flex: 1; padding: 15px; text-align: center; cursor: pointer; font-weight: bold; color: #666; background: #e9ecef; border-radius: 8px 8px 0 0; margin-right: 2px; }
+        .tab.active { background: #007bff; color: white; border-bottom: none; }
         
-        .grupo-input { margin-bottom: 15px; text-align: left; } /* Los inputs alineados a la izq */
-        label { display: block; font-weight: bold; margin-bottom: 5px; color: #555; }
-        input, textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; font-size: 16px; }
-        textarea { height: 80px; resize: vertical; }
+        /* FORMULARIO */
+        .form-section { display: none; background: white; padding: 20px; border-radius: 0 0 8px 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .form-section.active { display: block; }
 
-        .botones { display: flex; gap: 10px; margin-top: 20px; }
+        .grupo-input { margin-bottom: 15px; }
+        label { display: block; font-weight: bold; margin-bottom: 5px; color: #555; font-size: 14px; }
+        input, textarea { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-size: 16px; }
+        textarea { height: 70px; resize: vertical; }
+
+        /* BOTONES */
+        .botones { display: flex; gap: 10px; margin-top: 25px; }
+        button { flex: 1; padding: 15px; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; color: white; transition: 0.2s; }
         
-        button { flex: 1; padding: 15px; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; color: white; }
-        .btn-guardar { background-color: #28a745; } 
-        .btn-copiar { background-color: #007bff; } 
+        .btn-guardar { background-color: #28a745; }
+        .btn-copiar { background-color: #17a2b8; }
+        .btn-reset { background-color: #6c757d; flex: 0.5; } /* Botón gris más pequeño */
+
+        button:active { opacity: 0.8; transform: scale(0.98); }
         
-        button:active { opacity: 0.8; }
-        #mensaje { text-align: center; margin-top: 15px; font-weight: bold; }
+        #mensaje { text-align: center; margin-top: 15px; font-weight: bold; min-height: 20px; }
+        
+        /* Ocultar elementos visualmente pero mantenerlos en DOM si es necesario */
+        .hidden { display: none; }
     </style>
 </head>
 <body>
 
-    <div class="contenedor-principal">
+    <div class="header">
         <img src="logo.png" alt="Logo" class="mi-logo">
-        
-        <h2>📦 Nueva Review</h2>
     </div>
 
-    <div class="grupo-input">
-        <label>Producto:</label>
-        <input type="text" id="nombre">
+    <div class="tabs">
+        <div class="tab active" onclick="cambiarModo('nuevo')">1. ALTA PEDIDO</div>
+        <div class="tab" onclick="cambiarModo('actualizar')">2. COMPLETAR REVIEW</div>
     </div>
 
-    <div class="grupo-input">
-        <label>Nº Pedido:</label>
-        <input type="text" id="pedido">
+    <div id="form-nuevo" class="form-section active">
+        <div class="grupo-input">
+            <label>Producto:</label>
+            <input type="text" id="n_nombre">
+        </div>
+        <div class="grupo-input">
+            <label>Nº Pedido (Clave):</label>
+            <input type="text" id="n_pedido" placeholder="Ej: 123-456789-000">
+        </div>
+        <div class="grupo-input">
+            <label>URL Pedido:</label>
+            <input type="url" id="n_url_pedido">
+        </div>
+        <div class="grupo-input">
+            <label>Contacto Vendedor:</label>
+            <input type="text" id="n_contacto">
+        </div>
+        <div class="grupo-input">
+            <label>Precio:</label>
+            <input type="number" step="0.01" id="n_precio">
+        </div>
+        <div class="grupo-input">
+            <label>Notas Iniciales:</label>
+            <textarea id="n_notas"></textarea>
+        </div>
+
+        <div class="botones">
+            <button class="btn-reset" onclick="limpiarCampos('nuevo')">🧹 Borrar</button>
+            <button class="btn-guardar" onclick="enviarNuevo()">💾 Guardar Pedido</button>
+        </div>
     </div>
 
-    <div class="grupo-input">
-        <label>URL Pedido:</label>
-        <input type="url" id="url_pedido">
-    </div>
+    <div id="form-actualizar" class="form-section">
+        <p style="text-align:center; color:#666; font-size:14px; margin-bottom:20px;">
+            Introduce el Nº de Pedido original para añadir los datos de la review.
+        </p>
 
-    <div class="grupo-input">
-        <label>Contacto Vendedor:</label>
-        <input type="text" id="contacto">
-    </div>
+        <div class="grupo-input">
+            <label>Nº Pedido (El mismo de antes):</label>
+            <input type="text" id="a_pedido" placeholder="Ej: 123-456789-000">
+        </div>
 
-    <div class="grupo-input">
-        <label>Precio:</label>
-        <input type="number" step="0.01" id="precio">
-    </div>
+        <div class="grupo-input">
+            <label>Fecha Review:</label>
+            <input type="date" id="a_fecha">
+        </div>
 
-    <div class="grupo-input">
-        <label>Fecha Review:</label>
-        <input type="date" id="fecha">
-    </div>
+        <div class="grupo-input">
+            <label>URL Review:</label>
+            <input type="url" id="a_url_review">
+        </div>
 
-    <div class="grupo-input">
-        <label>URL Review:</label>
-        <input type="url" id="url_review">
-    </div>
-
-    <div class="grupo-input">
-        <label>Notas / Comentarios:</label>
-        <textarea id="notas"></textarea>
-    </div>
-
-    <div class="botones">
-        <button class="btn-guardar" onclick="enviar()">💾 Guardar</button>
-        <button class="btn-copiar" onclick="copiar()">📋 Copiar Info</button>
+        <div class="botones">
+            <button class="btn-reset" onclick="limpiarCampos('actualizar')">🧹</button>
+            <button class="btn-guardar" onclick="enviarActualizacion()">🔄 Actualizar</button>
+            <button class="btn-copiar" onclick="copiarInfo()">📋 Copiar</button>
+        </div>
     </div>
 
     <p id="mensaje"></p>
 
     <script>
-        // --- 🔴 PEGA TU URL DE APPS SCRIPT AQUÍ 🔴 ---
-        var scriptURL = "https://script.google.com/macros/s/AKfycbzdPyE77gPyvIh49rup9ajOZRl5cVpstLj0Ud7FpUAkbECYKHlyeBrGsVbAqNESGP7vtQ/exec"; 
+        // --- 🔴 PEGA TU URL DE GOOGLE SCRIPT AQUÍ 🔴 ---
+        var scriptURL = "AQUI_TU_URL_LARGA_DEL_SCRIPT"; 
         // ---------------------------------------------
 
-        function enviar() {
+        // Función para cambiar de pestaña
+        function cambiarModo(modo) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.form-section').forEach(f => f.classList.remove('active'));
+            document.getElementById('mensaje').innerText = "";
+
+            if (modo === 'nuevo') {
+                document.querySelectorAll('.tab')[0].classList.add('active');
+                document.getElementById('form-nuevo').classList.add('active');
+            } else {
+                document.querySelectorAll('.tab')[1].classList.add('active');
+                document.getElementById('form-actualizar').classList.add('active');
+            }
+        }
+
+        // Función para limpiar campos (Manual y Automática)
+        function limpiarCampos(modo) {
+            if (modo === 'nuevo') {
+                document.getElementById('n_nombre').value = "";
+                document.getElementById('n_pedido').value = "";
+                document.getElementById('n_url_pedido').value = "";
+                document.getElementById('n_contacto').value = "";
+                document.getElementById('n_precio').value = "";
+                document.getElementById('n_notas').value = "";
+            } else {
+                document.getElementById('a_pedido').value = "";
+                document.getElementById('a_fecha').value = "";
+                document.getElementById('a_url_review').value = "";
+            }
+        }
+
+        // ENVIAR NUEVO PEDIDO
+        function enviarNuevo() {
             var msj = document.getElementById("mensaje");
-            msj.innerText = "⏳ Enviando...";
+            var pedido = document.getElementById("n_pedido").value;
+
+            if (!pedido) { msj.innerText = "❌ Falta el Nº de Pedido"; return; }
+
+            msj.innerText = "⏳ Guardando nuevo pedido...";
 
             var datos = new FormData();
-            datos.append("nombre", document.getElementById("nombre").value);
-            datos.append("pedido", document.getElementById("pedido").value);
-            datos.append("url_pedido", document.getElementById("url_pedido").value);
-            datos.append("contacto", document.getElementById("contacto").value);
-            datos.append("precio", document.getElementById("precio").value);
-            datos.append("fecha", document.getElementById("fecha").value);
-            datos.append("url_review", document.getElementById("url_review").value);
-            datos.append("notas", document.getElementById("notas").value);
+            datos.append("accion", "nuevo"); // Le decimos al script que es NUEVO
+            datos.append("nombre", document.getElementById("n_nombre").value);
+            datos.append("pedido", pedido);
+            datos.append("url_pedido", document.getElementById("n_url_pedido").value);
+            datos.append("contacto", document.getElementById("n_contacto").value);
+            datos.append("precio", document.getElementById("n_precio").value);
+            datos.append("notas", document.getElementById("n_notas").value);
 
-            fetch(scriptURL, { method: 'POST', body: datos })
-            .then(response => {
-                msj.innerText = "✅ ¡Guardado!";
-                setTimeout(() => msj.innerText = "", 3000);
+            enviarAGoogle(datos, "nuevo");
+        }
+
+        // ENVIAR ACTUALIZACIÓN (REVIEW)
+        function enviarActualizacion() {
+            var msj = document.getElementById("mensaje");
+            var pedido = document.getElementById("a_pedido").value;
+
+            if (!pedido) { msj.innerText = "❌ Falta el Nº de Pedido para buscar"; return; }
+
+            msj.innerText = "⏳ Buscando y actualizando...";
+
+            var datos = new FormData();
+            datos.append("accion", "actualizar"); // Le decimos al script que es ACTUALIZAR
+            datos.append("pedido", pedido);
+            datos.append("fecha", document.getElementById("a_fecha").value);
+            datos.append("url_review", document.getElementById("a_url_review").value);
+
+            enviarAGoogle(datos, "actualizar");
+        }
+
+        // FUNCIÓN GENÉRICA DE ENVÍO
+        function enviarAGoogle(formData, modo) {
+            var msj = document.getElementById("mensaje");
+            
+            fetch(scriptURL, { method: 'POST', body: formData })
+            .then(response => response.text())
+            .then(texto => {
+                if (texto.includes("No encontrado")) {
+                    msj.innerText = "⚠️ Error: No existe ese Nº de Pedido en la hoja.";
+                } else {
+                    msj.innerText = "✅ ¡Operación realizada!";
+                    // Limpieza Automática tras éxito
+                    setTimeout(() => { 
+                        limpiarCampos(modo); 
+                        msj.innerText = "";
+                    }, 2000);
+                }
             })
             .catch(error => {
-                msj.innerText = "⚠️ Error (verifica la hoja).";
+                msj.innerText = "❌ Error de conexión.";
             });
         }
 
-        function copiar() {
-            var pedido = document.getElementById("pedido").value;
-            var urlRev = document.getElementById("url_review").value;
+        // COPIAR INFO (Solo disponible en la pestaña 2)
+        function copiarInfo() {
+            var pedido = document.getElementById("a_pedido").value;
+            var urlRev = document.getElementById("a_url_review").value;
             var miPaypal = "elisagundinmorales@gmail.com";
+
+            if(!pedido || !urlRev) {
+                alert("Rellena Nº Pedido y URL Review antes de copiar.");
+                return;
+            }
 
             var textoACopiar = "Pedido: " + pedido + "\n" +
                                "Review: " + urlRev + "\n" +
                                "PayPal: " + miPaypal;
 
             navigator.clipboard.writeText(textoACopiar).then(() => {
-                alert("✅ Copiado:\n\n" + textoACopiar);
-            }).catch(err => {
-                alert("❌ Error al copiar");
+                alert("✅ Copiado al portapapeles:\n\n" + textoACopiar);
             });
         }
     </script>
