@@ -8,44 +8,87 @@
     <link rel="icon" type="image/png" href="favicon.png">
     <link rel="apple-touch-icon" href="icono-192.png">
     <link rel="manifest" href="manifest.json">
-
     <meta name="theme-color" content="#ffffff">
+
     <style>
-        /* FONDO BLANCO para que el logo se integre bien */
-        body { font-family: sans-serif; background-color: #ffffff; padding: 20px; max-width: 600px; margin: 0 auto; }
+        body { font-family: sans-serif; background-color: #ffffff; padding: 15px; max-width: 600px; margin: 0 auto; padding-bottom: 50px; }
         
-        /* RESTO DE TU CSS */
         .header { text-align: center; margin-bottom: 20px; }
         .mi-logo { max-width: 180px; height: auto; margin-bottom: 5px; }
+
+        /* TABS */
         .tabs { display: flex; margin-bottom: 20px; border-bottom: 2px solid #ddd; }
-        .tab { flex: 1; padding: 15px; text-align: center; cursor: pointer; font-weight: bold; color: #666; background: #f8f9fa; border-radius: 8px 8px 0 0; margin-right: 2px; border: 1px solid #ddd; border-bottom: none; }
+        .tab { flex: 1; padding: 12px 5px; text-align: center; cursor: pointer; font-weight: bold; color: #666; background: #f8f9fa; border-radius: 8px 8px 0 0; margin-right: 2px; border: 1px solid #ddd; border-bottom: none; font-size: 14px; }
         .tab.active { background: #007bff; color: white; border-color: #007bff; }
+
+        /* SECCIONES */
         .form-section { display: none; padding: 10px 5px; }
         .form-section.active { display: block; animation: fadeIn 0.3s; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        /* INPUTS */
         .grupo-input { margin-bottom: 15px; }
         label { display: block; font-weight: bold; margin-bottom: 5px; color: #333; font-size: 14px; }
         input, textarea { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 16px; background-color: #f9f9f9; }
         textarea { height: 70px; resize: vertical; }
         input:focus, textarea:focus { border-color: #007bff; background-color: #fff; outline: none; }
+
+        /* BOTONES */
         .botones { display: flex; gap: 10px; margin-top: 25px; }
         button { flex: 1; padding: 15px; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; color: white; transition: 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         .btn-guardar { background-color: #28a745; }
         .btn-copiar { background-color: #17a2b8; }
         .btn-reset { background-color: #6c757d; flex: 0.4; }
         button:active { opacity: 0.8; transform: translateY(2px); }
+
         #mensaje { text-align: center; margin-top: 15px; font-weight: bold; min-height: 20px; color: #333; }
+
+        /* --- ESTILOS NUEVOS PARA TARJETAS (LISTADO) --- */
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.08);
+            border-left: 6px solid #ccc; /* Por defecto gris */
+            position: relative;
+        }
+        
+        .card.pendiente { border-left-color: #ff9800; } /* Naranja */
+        .card.completado { border-left-color: #28a745; } /* Verde */
+
+        .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+        .card-prod { font-weight: bold; font-size: 16px; color: #333; width: 85%; }
+        .card-price { font-weight: bold; color: #555; background: #eee; padding: 2px 6px; border-radius: 4px; font-size: 13px; white-space: nowrap; }
+
+        .card-pedido { font-family: monospace; font-size: 14px; color: #555; background: #fdfdfd; padding: 5px; border: 1px dashed #ccc; display: inline-block; margin-bottom: 8px; }
+        
+        .card-info { font-size: 13px; color: #666; margin-bottom: 5px; }
+        .card-info span { font-weight: bold; color: #444; }
+
+        .card-actions { margin-top: 12px; display: flex; gap: 10px; }
+        .btn-card { padding: 8px; font-size: 13px; border-radius: 5px; flex: 1; text-align: center; text-decoration: none; color: white; font-weight: normal; }
+        .btn-copy-id { background: #6c757d; border: none; cursor: pointer; }
+        .btn-link { background: #007bff; display: block; }
+        
+        .badge { display: inline-block; padding: 3px 6px; font-size: 10px; border-radius: 4px; color: white; vertical-align: middle; margin-left: 5px;}
+        .bg-ok { background: #28a745; }
+        .bg-wait { background: #ff9800; }
+
+        .loading-spinner { text-align: center; padding: 20px; color: #666; font-style: italic; }
+
     </style>
 </head>
-    <body>
+<body>
 
     <div class="header">
         <img src="logo.png" alt="Logo" class="mi-logo">
     </div>
 
     <div class="tabs">
-        <div class="tab active" onclick="cambiarModo('nuevo')">1. ALTA PEDIDO</div>
-        <div class="tab" onclick="cambiarModo('actualizar')">2. COMPLETAR REVIEW</div>
+        <div class="tab active" onclick="cambiarModo('nuevo')">1. ALTA</div>
+        <div class="tab" onclick="cambiarModo('actualizar')">2. REVIEW</div>
+        <div class="tab" onclick="cambiarModo('listado')">3. LISTADO</div>
     </div>
 
     <div id="form-nuevo" class="form-section active">
@@ -76,7 +119,7 @@
 
         <div class="botones">
             <button class="btn-reset" onclick="limpiarCampos('nuevo')">🧹 Borrar</button>
-            <button class="btn-guardar" onclick="enviarNuevo()">💾 Guardar Pedido</button>
+            <button class="btn-guardar" onclick="enviarNuevo()">💾 Guardar</button>
         </div>
     </div>
 
@@ -89,12 +132,10 @@
             <label>Nº Pedido (Buscador):</label>
             <input type="text" id="a_pedido" placeholder="Pega aquí el pedido original">
         </div>
-
         <div class="grupo-input">
             <label>Fecha Review:</label>
             <input type="date" id="a_fecha">
         </div>
-
         <div class="grupo-input">
             <label>URL Review:</label>
             <input type="url" id="a_url_review">
@@ -107,17 +148,24 @@
         </div>
     </div>
 
+    <div id="form-listado" class="form-section">
+        <div style="text-align: right; margin-bottom: 10px;">
+            <button onclick="cargarListado()" style="padding: 5px 10px; font-size: 14px; background: #666; width: auto;">🔄 Refrescar Lista</button>
+        </div>
+        <div id="contenedor-tarjetas">
+            <p class="loading-spinner">Pulsa la pestaña para cargar...</p>
+        </div>
+    </div>
+
     <p id="mensaje"></p>
 
     <script>
         // --- 🟢 SOLUCIÓN TECLADO MÓVIL 🟢 ---
-        // Esto detecta si arrastras el dedo por la pantalla y cierra el teclado
         document.addEventListener('touchmove', function(e) {
             if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') {
-                document.activeElement.blur(); // Quita el foco y cierra teclado
+                document.activeElement.blur(); 
             }
         });
-        // -------------------------------------
 
         // --- 🔴 PEGA TU URL DE GOOGLE SCRIPT AQUÍ ABAJO 🔴 ---
         var scriptURL = "https://script.google.com/macros/s/AKfycbySTroz945FKGmGP3p-XQb7d-6jLxQ2kYV01ZVEMTGV-MyTTQOTeH3IFr1IutKHm2HM8w/exec"; 
@@ -131,10 +179,72 @@
             if (modo === 'nuevo') {
                 document.querySelectorAll('.tab')[0].classList.add('active');
                 document.getElementById('form-nuevo').classList.add('active');
-            } else {
+            } else if (modo === 'actualizar') {
                 document.querySelectorAll('.tab')[1].classList.add('active');
                 document.getElementById('form-actualizar').classList.add('active');
+            } else {
+                document.querySelectorAll('.tab')[2].classList.add('active');
+                document.getElementById('form-listado').classList.add('active');
+                cargarListado(); // Carga automática al entrar
             }
+        }
+
+        function cargarListado() {
+            var contenedor = document.getElementById("contenedor-tarjetas");
+            contenedor.innerHTML = '<p class="loading-spinner">⏳ Cargando pedidos...</p>';
+
+            var datos = new FormData();
+            datos.append("accion", "leer");
+
+            fetch(scriptURL, { method: 'POST', body: datos })
+            .then(response => response.json()) // Esperamos JSON
+            .then(lista => {
+                contenedor.innerHTML = ""; // Limpiar
+                
+                if (lista.length === 0) {
+                    contenedor.innerHTML = "<p style='text-align:center'>No hay pedidos aún.</p>";
+                    return;
+                }
+
+                lista.forEach(item => {
+                    // Lógica: Si tiene URL de Review, está completado. Si no, pendiente.
+                    var tieneReview = item.url_rev && item.url_rev.length > 5;
+                    var claseEstado = tieneReview ? "completado" : "pendiente";
+                    var etiqueta = tieneReview ? "<span class='badge bg-ok'>Review OK</span>" : "<span class='badge bg-wait'>Pendiente</span>";
+                    
+                    var html = `
+                    <div class="card ${claseEstado}">
+                        <div class="card-header">
+                            <div class="card-prod">${item.nombre || "Sin nombre"} ${etiqueta}</div>
+                            <div class="card-price">${item.precio}€</div>
+                        </div>
+                        
+                        <div class="card-pedido">${item.pedido}</div>
+                        
+                        <div class="card-info"><span>Vendedor:</span> ${item.contacto}</div>
+                        ${item.notas ? `<div class="card-info" style="font-style:italic; font-size:12px">📝 ${item.notas}</div>` : ''}
+
+                        <div class="card-actions">
+                            <button class="btn-card btn-copy-id" onclick="copiarTexto('${item.pedido}')">📋 ID</button>
+                            ${item.url_pedido ? `<a href="${item.url_pedido}" target="_blank" class="btn-card btn-link">🔗 Ver Pedido</a>` : ''}
+                        </div>
+                    </div>
+                    `;
+                    contenedor.innerHTML += html;
+                });
+            })
+            .catch(error => {
+                console.error(error);
+                contenedor.innerHTML = "<p style='text-align:center; color:red'>Error al cargar. Revisa la conexión.</p>";
+            });
+        }
+
+        function copiarTexto(texto) {
+            navigator.clipboard.writeText(texto).then(() => {
+                var msj = document.getElementById("mensaje");
+                msj.innerText = "Copiado: " + texto;
+                setTimeout(() => msj.innerText = "", 1500);
+            });
         }
 
         function limpiarCampos(modo) {
@@ -189,10 +299,9 @@
             .then(response => response.text())
             .then(texto => {
                 if (texto.includes("No encontrado")) {
-                    msj.innerText = "⚠️ No existe ese Pedido. Revisa el número.";
+                    msj.innerText = "⚠️ No existe ese Pedido.";
                 } else {
                     msj.innerText = "✅ ¡Hecho!";
-                    // Limpieza automática tras 1.5 segundos
                     setTimeout(() => { 
                         limpiarCampos(modo); 
                         msj.innerText = "";
@@ -205,11 +314,10 @@
         function copiarInfo() {
             var pedido = document.getElementById("a_pedido").value;
             var urlRev = document.getElementById("a_url_review").value;
-            // PayPal oculto
             var miPaypal = "elisagundinmorales@gmail.com";
 
             if(!pedido || !urlRev) {
-                alert("Primero rellena el Nº de Pedido y la URL de la Review.");
+                alert("Rellena Nº Pedido y URL Review.");
                 return;
             }
 
