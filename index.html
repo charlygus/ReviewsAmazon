@@ -16,9 +16,27 @@
         .header { text-align: center; margin-bottom: 20px; }
         .mi-logo { max-width: 180px; height: auto; margin-bottom: 5px; }
 
-        /* TABS */
+        /* TABS (MEJORADO: No seleccionable) */
         .tabs { display: flex; margin-bottom: 20px; border-bottom: 2px solid #ddd; }
-        .tab { flex: 1; padding: 12px 5px; text-align: center; cursor: pointer; font-weight: bold; color: #666; background: #f8f9fa; border-radius: 8px 8px 0 0; margin-right: 2px; border: 1px solid #ddd; border-bottom: none; font-size: 14px; }
+        .tab { 
+            flex: 1; 
+            padding: 12px 5px; 
+            text-align: center; 
+            cursor: pointer; 
+            font-weight: bold; 
+            color: #666; 
+            background: #f8f9fa; 
+            border-radius: 8px 8px 0 0; 
+            margin-right: 2px; 
+            border: 1px solid #ddd; 
+            border-bottom: none; 
+            font-size: 14px;
+            
+            /* --- 🟢 ESTO EVITA QUE SALGA EL CURSOR DE TEXTO --- */
+            user-select: none; 
+            -webkit-user-select: none; /* Para Safari/Chrome móvil */
+            -webkit-tap-highlight-color: transparent; /* Quita el parpadeo azul al tocar */
+        }
         .tab.active { background: #007bff; color: white; border-color: #007bff; }
 
         /* SECCIONES */
@@ -43,19 +61,19 @@
 
         #mensaje { text-align: center; margin-top: 15px; font-weight: bold; min-height: 20px; color: #333; }
 
-        /* --- ESTILOS NUEVOS PARA TARJETAS (LISTADO) --- */
+        /* TARJETAS LISTADO */
         .card {
             background: white;
             border-radius: 10px;
             padding: 15px;
             margin-bottom: 15px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.08);
-            border-left: 6px solid #ccc; /* Por defecto gris */
+            border-left: 6px solid #ccc; 
             position: relative;
         }
         
-        .card.pendiente { border-left-color: #ff9800; } /* Naranja */
-        .card.completado { border-left-color: #28a745; } /* Verde */
+        .card.pendiente { border-left-color: #ff9800; } 
+        .card.completado { border-left-color: #28a745; } 
 
         .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
         .card-prod { font-weight: bold; font-size: 16px; color: #333; width: 85%; }
@@ -167,9 +185,9 @@
             }
         });
 
-        // --- 🔴 PEGA TU URL DE GOOGLE SCRIPT AQUÍ ABAJO 🔴 ---
-        var scriptURL = "https://script.google.com/macros/s/AKfycbxt_9JrCHsAmvm3NSslPzjbNfAxQ6N7mE_TSEL0I73Wnc24uhm9nGkiqmRV4H_UB9YG6g/exec"; 
-        // -----------------------------------------------------
+        // --- 🔴 IMPORTANTE: PEGA AQUÍ TU URL NUEVA DE GOOGLE SCRIPT 🔴 ---
+        var scriptURL = "AQUI_PEGA_TU_URL_DEL_PASO_ANTERIOR"; 
+        // ------------------------------------------------------------------
 
         function cambiarModo(modo) {
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -185,7 +203,7 @@
             } else {
                 document.querySelectorAll('.tab')[2].classList.add('active');
                 document.getElementById('form-listado').classList.add('active');
-                cargarListado(); // Carga automática al entrar
+                cargarListado(); 
             }
         }
 
@@ -197,17 +215,16 @@
             datos.append("accion", "leer");
 
             fetch(scriptURL, { method: 'POST', body: datos })
-            .then(response => response.json()) // Esperamos JSON
+            .then(response => response.json()) 
             .then(lista => {
-                contenedor.innerHTML = ""; // Limpiar
+                contenedor.innerHTML = ""; 
                 
                 if (lista.length === 0) {
-                    contenedor.innerHTML = "<p style='text-align:center'>No hay pedidos aún.</p>";
+                    contenedor.innerHTML = "<p style='text-align:center'>No hay pedidos recientes.</p>";
                     return;
                 }
 
                 lista.forEach(item => {
-                    // Lógica: Si tiene URL de Review, está completado. Si no, pendiente.
                     var tieneReview = item.url_rev && item.url_rev.length > 5;
                     var claseEstado = tieneReview ? "completado" : "pendiente";
                     var etiqueta = tieneReview ? "<span class='badge bg-ok'>Review OK</span>" : "<span class='badge bg-wait'>Pendiente</span>";
