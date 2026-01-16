@@ -11,12 +11,8 @@
     <meta name="theme-color" content="#ffffff">
 
     <style>
-        /* --- 🟢 CAMBIO GLOBAL: MODO APP --- */
-        /* Esto evita que se seleccione texto en CUALQUIER sitio de la web */
-        * {
-            -webkit-tap-highlight-color: transparent; /* Quita el flash azul al tocar en Android/iOS */
-        }
-
+        /* MODO APP: Sin selección de texto global */
+        * { -webkit-tap-highlight-color: transparent; }
         body { 
             font-family: sans-serif; 
             background-color: #ffffff; 
@@ -24,12 +20,8 @@
             max-width: 600px; 
             margin: 0 auto; 
             padding-bottom: 50px;
-            
-            /* Bloqueo de selección de texto para toda la pantalla */
             user-select: none;
-            -webkit-user-select: none; /* Safari / Chrome móvil */
-            -moz-user-select: none;    /* Firefox */
-            -ms-user-select: none;     /* IE / Edge */
+            -webkit-user-select: none;
         }
         
         .header { text-align: center; margin-bottom: 20px; }
@@ -38,18 +30,9 @@
         /* TABS */
         .tabs { display: flex; margin-bottom: 20px; border-bottom: 2px solid #ddd; }
         .tab { 
-            flex: 1; 
-            padding: 12px 5px; 
-            text-align: center; 
-            cursor: pointer; 
-            font-weight: bold; 
-            color: #666; 
-            background: #f8f9fa; 
-            border-radius: 8px 8px 0 0; 
-            margin-right: 2px; 
-            border: 1px solid #ddd; 
-            border-bottom: none; 
-            font-size: 14px;
+            flex: 1; padding: 12px 5px; text-align: center; cursor: pointer; font-weight: bold; 
+            color: #666; background: #f8f9fa; border-radius: 8px 8px 0 0; margin-right: 2px; 
+            border: 1px solid #ddd; border-bottom: none; font-size: 14px;
         }
         .tab.active { background: #007bff; color: white; border-color: #007bff; }
 
@@ -58,25 +41,14 @@
         .form-section.active { display: block; animation: fadeIn 0.3s; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-        /* INPUTS - 🟢 EXCEPCIÓN IMPORTANTE */
-        /* Aquí SÍ permitimos seleccionar texto para poder escribir y corregir */
+        /* INPUTS (Selección permitida) */
         .grupo-input { margin-bottom: 15px; }
         label { display: block; font-weight: bold; margin-bottom: 5px; color: #333; font-size: 14px; }
-        
         input, textarea { 
-            width: 100%; 
-            padding: 12px; 
-            border: 1px solid #ccc; 
-            border-radius: 6px; 
-            box-sizing: border-box; 
-            font-size: 16px; 
-            background-color: #f9f9f9; 
-            
-            /* Permitir escribir y seleccionar dentro de los inputs */
-            user-select: text !important;
-            -webkit-user-select: text !important;
+            width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; 
+            font-size: 16px; background-color: #f9f9f9; 
+            user-select: text !important; -webkit-user-select: text !important;
         }
-        
         textarea { height: 70px; resize: vertical; }
         input:focus, textarea:focus { border-color: #007bff; background-color: #fff; outline: none; }
 
@@ -92,17 +64,14 @@
 
         /* TARJETAS LISTADO */
         .card {
-            background: white;
-            border-radius: 10px;
-            padding: 15px;
-            margin-bottom: 15px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.08);
-            border-left: 6px solid #ccc; 
-            position: relative;
+            background: white; border-radius: 10px; padding: 15px; margin-bottom: 15px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.08); border-left: 6px solid #ccc; position: relative;
         }
         
-        .card.pendiente { border-left-color: #ff9800; } 
-        .card.completado { border-left-color: #28a745; } 
+        /* ESTADOS DE COLORES */
+        .card.pendiente { border-left-color: #ff9800; } /* Naranja: Falta Review */
+        .card.esperando-pago { border-left-color: #17a2b8; } /* Azul: Review OK, falta dinero */
+        .card.pagado { border-left-color: #28a745; } /* Verde: Todo OK */
 
         .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
         .card-prod { font-weight: bold; font-size: 16px; color: #333; width: 85%; }
@@ -113,14 +82,16 @@
         .card-info { font-size: 13px; color: #666; margin-bottom: 5px; }
         .card-info span { font-weight: bold; color: #444; }
 
-        .card-actions { margin-top: 12px; display: flex; gap: 10px; }
-        .btn-card { padding: 8px; font-size: 13px; border-radius: 5px; flex: 1; text-align: center; text-decoration: none; color: white; font-weight: normal; }
-        .btn-copy-id { background: #6c757d; border: none; cursor: pointer; }
+        .card-actions { margin-top: 12px; display: flex; gap: 10px; flex-wrap: wrap; }
+        .btn-card { padding: 8px; font-size: 13px; border-radius: 5px; flex: 1; text-align: center; text-decoration: none; color: white; font-weight: normal; border: none; cursor: pointer; }
+        .btn-copy-id { background: #6c757d; }
         .btn-link { background: #007bff; display: block; }
+        .btn-pagar { background: #17a2b8; font-weight: bold; border: 1px solid #138496; }
         
         .badge { display: inline-block; padding: 3px 6px; font-size: 10px; border-radius: 4px; color: white; vertical-align: middle; margin-left: 5px;}
-        .bg-ok { background: #28a745; }
-        .bg-wait { background: #ff9800; }
+        .bg-ok { background: #28a745; }   /* Verde */
+        .bg-wait { background: #ff9800; } /* Naranja */
+        .bg-pay { background: #17a2b8; }  /* Azul */
 
         .loading-spinner { text-align: center; padding: 20px; color: #666; font-style: italic; }
 
@@ -207,7 +178,7 @@
     <p id="mensaje"></p>
 
     <script>
-        // --- 🟢 SOLUCIÓN TECLADO MÓVIL 🟢 ---
+        // --- 🟢 SOLUCIÓN TECLADO MÓVIL ---
         document.addEventListener('touchmove', function(e) {
             if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') {
                 document.activeElement.blur(); 
@@ -215,7 +186,7 @@
         });
 
         // --- 🔴 IMPORTANTE: PEGA AQUÍ TU URL NUEVA DE GOOGLE SCRIPT 🔴 ---
-        var scriptURL = "https://script.google.com/macros/s/AKfycbxt_9JrCHsAmvm3NSslPzjbNfAxQ6N7mE_TSEL0I73Wnc24uhm9nGkiqmRV4H_UB9YG6g/exec"; 
+        var scriptURL = "https://script.google.com/macros/s/AKfycbz6vZpZtGLitaqb3aRQ0RUGlTLmqQu9dmxhULl9s7xOcbLWH-QZdsI0i-lrZbPSskE0Mw/exec"; 
         // ------------------------------------------------------------------
 
         function cambiarModo(modo) {
@@ -254,10 +225,25 @@
                 }
 
                 lista.forEach(item => {
+                    // --- LÓGICA DE ESTADOS (SEMÁFORO) ---
                     var tieneReview = item.url_rev && item.url_rev.length > 5;
-                    var claseEstado = tieneReview ? "completado" : "pendiente";
-                    var etiqueta = tieneReview ? "<span class='badge bg-ok'>Review OK</span>" : "<span class='badge bg-wait'>Pendiente</span>";
-                    
+                    // Detectamos si la casilla es TRUE (marcada)
+                    var estaPagado = (item.pagado === true || item.pagado === "true" || item.pagado === "TRUE");
+
+                    var claseEstado = "pendiente"; // Default Naranja
+                    var etiqueta = "<span class='badge bg-wait'>Falta Review</span>";
+                    var botonAccion = ""; // Botón extra
+
+                    if (estaPagado) {
+                        claseEstado = "pagado"; // Verde
+                        etiqueta = "<span class='badge bg-ok'>COMPLETADO</span>";
+                    } else if (tieneReview) {
+                        claseEstado = "esperando-pago"; // Azul
+                        etiqueta = "<span class='badge bg-pay'>Esperando Pago</span>";
+                        // Botón para confirmar cobro (activará el checkbox en Sheets)
+                        botonAccion = `<button class="btn-card btn-pagar" onclick="marcarPagado('${item.pedido}')">💰 Confirmar Cobro</button>`;
+                    }
+
                     var html = `
                     <div class="card ${claseEstado}">
                         <div class="card-header">
@@ -271,8 +257,9 @@
                         ${item.notas ? `<div class="card-info" style="font-style:italic; font-size:12px">📝 ${item.notas}</div>` : ''}
 
                         <div class="card-actions">
+                            ${botonAccion}
                             <button class="btn-card btn-copy-id" onclick="copiarTexto('${item.pedido}')">📋 ID</button>
-                            ${item.url_pedido ? `<a href="${item.url_pedido}" target="_blank" class="btn-card btn-link">🔗 Ver Pedido</a>` : ''}
+                            ${item.url_pedido ? `<a href="${item.url_pedido}" target="_blank" class="btn-card btn-link">🔗 Link</a>` : ''}
                         </div>
                     </div>
                     `;
@@ -282,6 +269,24 @@
             .catch(error => {
                 console.error(error);
                 contenedor.innerHTML = "<p style='text-align:center; color:red'>Error al cargar. Revisa la conexión.</p>";
+            });
+        }
+
+        function marcarPagado(pedidoId) {
+            if(!confirm("¿Confirmas que has recibido el dinero de este pedido?")) return;
+
+            var msj = document.getElementById("mensaje");
+            msj.innerText = "⏳ Marcando como pagado...";
+            
+            var datos = new FormData();
+            datos.append("accion", "marcar_pagado");
+            datos.append("pedido", pedidoId);
+
+            fetch(scriptURL, { method: 'POST', body: datos })
+            .then(response => response.text())
+            .then(texto => {
+                msj.innerText = "✅ ¡Cobrado!";
+                cargarListado(); // Recargamos para ver el cambio a verde
             });
         }
 
@@ -357,22 +362,24 @@
             .catch(error => { msj.innerText = "❌ Error de conexión."; });
         }
 
+        // --- 🟢 ACTUALIZADO: NUEVO ORDEN DE COPIA ---
         function copiarInfo() {
             var pedido = document.getElementById("a_pedido").value;
             var urlRev = document.getElementById("a_url_review").value;
             var miPaypal = "elisagundinmorales@gmail.com";
 
             if(!pedido || !urlRev) {
-                alert("Rellena Nº Pedido y URL Review.");
+                alert("Rellena Nº Pedido y URL Review para poder copiar.");
                 return;
             }
 
-            var texto = "Pedido: " + pedido + "\n" +
-                        "Review: " + urlRev + "\n" +
-                        "PayPal: " + miPaypal;
+            // Orden: Pedido \n URL \n PayPal
+            var texto = pedido + "\n" +
+                        urlRev + "\n" +
+                        miPaypal;
 
             navigator.clipboard.writeText(texto).then(() => {
-                alert("✅ DATOS COPIADOS:\n\n" + texto);
+                alert("✅ DATOS COPIADOS AL PORTAPAPELES:\n\n" + texto);
             });
         }
     </script>
