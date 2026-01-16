@@ -11,17 +11,12 @@
     <meta name="theme-color" content="#ffffff">
 
     <style>
-        /* MODO APP: Sin selección de texto global */
+        /* MODO APP */
         * { -webkit-tap-highlight-color: transparent; }
         body { 
-            font-family: sans-serif; 
-            background-color: #ffffff; 
-            padding: 15px; 
-            max-width: 600px; 
-            margin: 0 auto; 
-            padding-bottom: 50px;
-            user-select: none;
-            -webkit-user-select: none;
+            font-family: sans-serif; background-color: #ffffff; padding: 15px; 
+            max-width: 600px; margin: 0 auto; padding-bottom: 50px;
+            user-select: none; -webkit-user-select: none;
         }
         
         .header { text-align: center; margin-bottom: 20px; }
@@ -41,7 +36,7 @@
         .form-section.active { display: block; animation: fadeIn 0.3s; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-        /* INPUTS (Selección permitida) */
+        /* INPUTS */
         .grupo-input { margin-bottom: 15px; }
         label { display: block; font-weight: bold; margin-bottom: 5px; color: #333; font-size: 14px; }
         input, textarea { 
@@ -68,10 +63,9 @@
             box-shadow: 0 2px 5px rgba(0,0,0,0.08); border-left: 6px solid #ccc; position: relative;
         }
         
-        /* ESTADOS DE COLORES */
-        .card.pendiente { border-left-color: #ff9800; } /* Naranja: Falta Review */
-        .card.esperando-pago { border-left-color: #17a2b8; } /* Azul: Review OK, falta dinero */
-        .card.pagado { border-left-color: #28a745; } /* Verde: Todo OK */
+        .card.pendiente { border-left-color: #ff9800; } 
+        .card.esperando-pago { border-left-color: #17a2b8; } 
+        .card.pagado { border-left-color: #28a745; } 
 
         .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
         .card-prod { font-weight: bold; font-size: 16px; color: #333; width: 85%; }
@@ -82,6 +76,13 @@
         .card-info { font-size: 13px; color: #666; margin-bottom: 5px; }
         .card-info span { font-weight: bold; color: #444; }
 
+        /* FECHAS EN EL PIE DE LA TARJETA */
+        .card-dates {
+            margin-top: 10px; padding-top: 8px; border-top: 1px solid #eee;
+            font-size: 11px; color: #888; text-align: right;
+        }
+        .date-item { margin-left: 8px; display: inline-block; }
+
         .card-actions { margin-top: 12px; display: flex; gap: 10px; flex-wrap: wrap; }
         .btn-card { padding: 8px; font-size: 13px; border-radius: 5px; flex: 1; text-align: center; text-decoration: none; color: white; font-weight: normal; border: none; cursor: pointer; }
         .btn-copy-id { background: #6c757d; }
@@ -89,9 +90,9 @@
         .btn-pagar { background: #17a2b8; font-weight: bold; border: 1px solid #138496; }
         
         .badge { display: inline-block; padding: 3px 6px; font-size: 10px; border-radius: 4px; color: white; vertical-align: middle; margin-left: 5px;}
-        .bg-ok { background: #28a745; }   /* Verde */
-        .bg-wait { background: #ff9800; } /* Naranja */
-        .bg-pay { background: #17a2b8; }  /* Azul */
+        .bg-ok { background: #28a745; }   
+        .bg-wait { background: #ff9800; } 
+        .bg-pay { background: #17a2b8; } 
 
         .loading-spinner { text-align: center; padding: 20px; color: #666; font-style: italic; }
 
@@ -185,9 +186,9 @@
             }
         });
 
-        // --- 🔴 IMPORTANTE: PEGA AQUÍ TU URL NUEVA DE GOOGLE SCRIPT 🔴 ---
-        var scriptURL = "https://script.google.com/macros/s/AKfycbz6vZpZtGLitaqb3aRQ0RUGlTLmqQu9dmxhULl9s7xOcbLWH-QZdsI0i-lrZbPSskE0Mw/exec"; 
-        // ------------------------------------------------------------------
+        // --- 🔴 PEGA AQUÍ TU NUEVA URL DEL SCRIPT 🔴 ---
+        var scriptURL = "AQUI_PEGA_TU_NUEVA_URL"; 
+        // -----------------------------------------------
 
         function cambiarModo(modo) {
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -225,23 +226,29 @@
                 }
 
                 lista.forEach(item => {
-                    // --- LÓGICA DE ESTADOS (SEMÁFORO) ---
                     var tieneReview = item.url_rev && item.url_rev.length > 5;
-                    // Detectamos si la casilla es TRUE (marcada)
                     var estaPagado = (item.pagado === true || item.pagado === "true" || item.pagado === "TRUE");
 
-                    var claseEstado = "pendiente"; // Default Naranja
+                    var claseEstado = "pendiente"; 
                     var etiqueta = "<span class='badge bg-wait'>Falta Review</span>";
-                    var botonAccion = ""; // Botón extra
+                    var botonAccion = ""; 
+                    
+                    // --- LÓGICA DE FECHAS (ACUMULATIVAS) ---
+                    var htmlFechas = `<span class="date-item">📅 Alta: ${item.f_alta}</span>`;
 
                     if (estaPagado) {
-                        claseEstado = "pagado"; // Verde
+                        claseEstado = "pagado"; 
                         etiqueta = "<span class='badge bg-ok'>COMPLETADO</span>";
+                        // Si está pagado, mostramos todo
+                        if(item.f_review) htmlFechas += ` <span class="date-item">| ⭐ Rev: ${item.f_review}</span>`;
+                        if(item.f_pago) htmlFechas += ` <span class="date-item">| 💰 Pago: ${item.f_pago}</span>`;
+
                     } else if (tieneReview) {
-                        claseEstado = "esperando-pago"; // Azul
+                        claseEstado = "esperando-pago"; 
                         etiqueta = "<span class='badge bg-pay'>Esperando Pago</span>";
-                        // Botón para confirmar cobro (activará el checkbox en Sheets)
                         botonAccion = `<button class="btn-card btn-pagar" onclick="marcarPagado('${item.pedido}')">💰 Confirmar Cobro</button>`;
+                        // Si tiene review pero falta pago
+                        if(item.f_review) htmlFechas += ` <span class="date-item">| ⭐ Rev: ${item.f_review}</span>`;
                     }
 
                     var html = `
@@ -255,6 +262,10 @@
                         
                         <div class="card-info"><span>Vendedor:</span> ${item.contacto}</div>
                         ${item.notas ? `<div class="card-info" style="font-style:italic; font-size:12px">📝 ${item.notas}</div>` : ''}
+
+                        <div class="card-dates">
+                            ${htmlFechas}
+                        </div>
 
                         <div class="card-actions">
                             ${botonAccion}
@@ -286,7 +297,7 @@
             .then(response => response.text())
             .then(texto => {
                 msj.innerText = "✅ ¡Cobrado!";
-                cargarListado(); // Recargamos para ver el cambio a verde
+                cargarListado(); 
             });
         }
 
@@ -362,7 +373,6 @@
             .catch(error => { msj.innerText = "❌ Error de conexión."; });
         }
 
-        // --- 🟢 ACTUALIZADO: NUEVO ORDEN DE COPIA ---
         function copiarInfo() {
             var pedido = document.getElementById("a_pedido").value;
             var urlRev = document.getElementById("a_url_review").value;
@@ -373,7 +383,6 @@
                 return;
             }
 
-            // Orden: Pedido \n URL \n PayPal
             var texto = pedido + "\n" +
                         urlRev + "\n" +
                         miPaypal;
