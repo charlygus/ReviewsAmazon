@@ -227,40 +227,47 @@
                 document.getElementById("n_precio").style.backgroundColor = "#e8f5e9";
             }
 
-            // 3. Buscar Nombre (NUEVA LÓGICA MULTILÍNEA)
+            // 3. Buscar Nombre (NUEVA LÓGICA + LIMPIEZA)
             var lineas = texto.split('\n');
             var tituloDetectado = [];
             
             for (var i = 0; i < lineas.length; i++) {
                 var lineaActual = lineas[i].trim();
 
-                // Buscamos el ancla "Vendido por" o "Sold by"
+                // Buscamos el ancla "Vendido por"
                 if (lineaActual.toLowerCase().includes("vendido por") || lineaActual.toLowerCase().includes("sold by")) {
                     
                     // Cuando lo encontramos, miramos HACIA ARRIBA (hasta 3 líneas)
                     for (var j = 1; j <= 3; j++) {
                         var posibleLinea = lineas[i - j];
-                        if (!posibleLinea) break; // Fin del archivo
+                        if (!posibleLinea) break; 
                         
                         posibleLinea = posibleLinea.trim();
 
-                        // SI ENCONTRAMOS ESTO, PARAMOS DE LEER:
-                        if (posibleLinea.includes("Llega")) break; // "Llega mañana"
-                        if (posibleLinea.includes("Entregado")) break; // "Entregado el..."
-                        if (posibleLinea.includes("€")) break; // El precio
-                        if (posibleLinea.length < 3) break; // Líneas vacías o ruido
+                        // Paramos si encontramos estas palabras
+                        if (posibleLinea.includes("Llega")) break; 
+                        if (posibleLinea.includes("Entregado")) break; 
+                        if (posibleLinea.includes("€")) break; 
+                        if (posibleLinea.length < 3) break; 
 
-                        // Si pasa el filtro, lo añadimos AL PRINCIPIO del array
                         tituloDetectado.unshift(posibleLinea);
                     }
-                    
-                    // Ya hemos encontrado el bloque, salimos del bucle principal
                     break; 
                 }
             }
 
             if (tituloDetectado.length > 0) {
-                document.getElementById("n_nombre").value = tituloDetectado.join(" ");
+                var textoFinal = tituloDetectado.join(" ");
+
+                // --- 🧹 LIMPIEZA DE BASURA AL INICIO ---
+                // 1. Quitar símbolos raros al principio (ej: | - _ )
+                textoFinal = textoFinal.replace(/^[^a-zA-Z0-9(]+/, ""); 
+                
+                // 2. Quitar un dígito suelto seguido de espacio si después viene mayúscula
+                // Esto arregla el problema de "3 T Tenegil" -> "T Tenegil"
+                textoFinal = textoFinal.replace(/^\d\s(?=[A-Z])/, "");
+
+                document.getElementById("n_nombre").value = textoFinal;
                 document.getElementById("n_nombre").style.backgroundColor = "#e8f5e9";
             }
         }
