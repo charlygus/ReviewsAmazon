@@ -10,8 +10,6 @@
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#ffffff">
 
-    <script src='https://unpkg.com/tesseract.js@v2.1.0/dist/tesseract.min.js'></script>
-
     <style>
         /* MODO APP */
         * { -webkit-tap-highlight-color: transparent; }
@@ -49,7 +47,7 @@
         textarea { height: 70px; resize: vertical; }
         input:focus, textarea:focus, select:focus { border-color: #007bff; background-color: #fff; outline: none; }
 
-        /* ZONA ESCÁNER */
+        /* ZONA ESCÁNER PRO */
         .scanner-box {
             background: #f0f4ff; border: 2px dashed #007bff; border-radius: 10px; 
             padding: 15px; text-align: center; margin-bottom: 20px;
@@ -99,10 +97,10 @@
     <div id="form-nuevo" class="form-section active">
         
         <div class="scanner-box">
-            <p style="margin: 0 0 10px 0; font-weight: bold; color: #0056b3;">Escaneo automático</p>
-            <input type="file" id="input-imagen" accept="image/*" style="display: none;" onchange="procesarImagen(this)">
+            <p style="margin: 0 0 10px 0; font-weight: bold; color: #0056b3;">📷 Escáner Pro (Google AI)</p>
+            <input type="file" id="input-imagen" accept="image/*" style="display: none;" onchange="procesarImagenPro(this)">
             <button onclick="document.getElementById('input-imagen').click()" style="background: #007bff; padding: 8px 15px; width: auto; font-size: 14px;">Subir Captura</button>
-            <p id="estado-ocr" style="font-size: 12px; color: #666; margin-top: 10px; display: none;">Analizando...</p>
+            <p id="estado-ocr" style="font-size: 12px; color: #666; margin-top: 10px; display: none;">⏳ Analizando...</p>
         </div>
 
         <div class="grupo-input">
@@ -192,93 +190,52 @@
             }
         }
 
-        // --- LÓGICA OCR (LECTURA DE IMAGEN) ---
-        function procesarImagen(input) {
+        // --- LÓGICA OCR PRO (VIA SERVER) ---
+        function procesarImagenPro(input) {
             if (input.files && input.files[0]) {
+                var file = input.files[0];
                 var estado = document.getElementById("estado-ocr");
                 estado.style.display = "block";
-                estado.innerText = "⏳ Leyendo imagen...";
+                estado.innerText = "⏳ Enviando a Google AI...";
 
-                Tesseract.recognize(input.files[0], 'eng')
-                .then(({ data: { text } }) => {
-                    rellenarDesdeOCR(text);
-                    estado.innerText = "✨ ¡Datos leídos!";
-                    setTimeout(() => estado.style.display = "none", 2500);
-                })
-                .catch(err => {
-                    console.error(err);
-                    estado.innerText = "❌ Error lectura";
-                });
+                var reader = new FileReader();
+                reader.onload = function(e) {
+                    var base64 = e.target.result;
+                    var datos = new FormData();
+                    datos.append("accion", "ocr_drive");
+                    datos.append("mimetype", file.type);
+                    datos.append("imagen", base64);
+
+                    fetch(scriptURL, { method: 'POST', body: datos })
+                    .then(r => r.json())
+                    .then(res => {
+                        if(res.error) {
+                            estado.innerText = "❌ Error: " + res.error;
+                        } else {
+                            estado.innerText = "✨ ¡Detectado!";
+                            setTimeout(() => estado.style.display = "none", 3000);
+                            
+                            if(res.pedido) {
+                                document.getElementById("n_pedido").value = res.pedido;
+                                document.getElementById("n_pedido").style.backgroundColor = "#e8f5e9";
+                            }
+                            if(res.precio) {
+                                document.getElementById("n_precio").value = res.precio;
+                                document.getElementById("n_precio").style.backgroundColor = "#e8f5e9";
+                            }
+                            if(res.nombre) {
+                                document.getElementById("n_nombre").value = res.nombre;
+                                document.getElementById("n_nombre").style.backgroundColor = "#e8f5e9";
+                            }
+                        }
+                    })
+                    .catch(err => {
+                        estado.innerText = "❌ Error conexión";
+                        console.error(err);
+                    });
+                };
+                reader.readAsDataURL(file);
             }
-        }
-
-        function rellenarDesdeOCR(texto) {
-            // 1. Buscar Pedido (XXX-XXXXXXX-XXXXXXX)
-            var matchPedido = texto.match(/\d{3}-\d{7}-\d{7}/);
-            if (matchPedido) {
-                document.getElementById("n_pedido").value = matchPedido[0];
-                document.getElementById("n_pedido").style.backgroundColor = "#e8f5e9";
-            }
-
-            // 2. Buscar Precio
-            var matchPrecio = texto.match(/(\d+[,.]\d{1,2})\s?[€]/);
-            if (matchPrecio) {
-                document.getElementById("n_precio").value = matchPrecio[1].replace(",", ".");
-                document.getElementById("n_precio").style.backgroundColor = "#e8f5e9";
-            }
-
-            // 3. Buscar Nombre
-            var lineas = texto.split('\n');
-            var tituloDetectado = [];
-            
-            for (var i = 0; i < lineas.length; i++) {
-                var lineaActual = lineas[i].trim();
-
-                if (lineaActual.toLowerCase().includes("vendido por") || lineaActual.toLowerCase().includes("sold by")) {
-                    for (var j = 1; j <= 3; j++) {
-                        var posibleLinea = lineas[i - j];
-                        if (!posibleLinea) break; 
-                        
-                        posibleLinea = posibleLinea.trim();
-                        if (posibleLinea.includes("Llega")) break; 
-                        if (posibleLinea.includes("Entregado")) break; 
-                        if (posibleLinea.includes("€")) break; 
-                        if (posibleLinea.length < 3) break; 
-
-                        tituloDetectado.unshift(posibleLinea);
-                    }
-                    break; 
-                }
-            }
-
-            if (tituloDetectado.length > 0) {
-                var textoSucio = tituloDetectado.join(" ");
-                // Usamos la "Escoba Industrial"
-                var textoLimpio = limpiarTextoRuido(textoSucio);
-
-                document.getElementById("n_nombre").value = textoLimpio;
-                document.getElementById("n_nombre").style.backgroundColor = "#e8f5e9";
-            }
-        }
-
-        // --- 🧹 ESCOBA INDUSTRIAL DE RUIDO OCR ---
-        function limpiarTextoRuido(texto) {
-            var limpio = texto;
-
-            // 1. ELIMINAR BASURA GLOBAL
-            limpio = limpio.replace(/[\\|\[\]{}_<>*]/g, " ");
-
-            // 2. ELIMINAR PUNTUACIÓN "FLOTANTE"
-            limpio = limpio.replace(/\s+[\.\,\-\;]\s+/g, " ");
-
-            // 3. LIMPIEZA INICIAL
-            limpio = limpio.replace(/^[^a-zA-Z0-9(Á-Úá-ú]+/, "");
-            limpio = limpio.replace(/^\d\s+(?=[A-Z])/, "");
-
-            // 4. COMPACTAR ESPACIOS
-            limpio = limpio.replace(/\s\s+/g, " ");
-
-            return limpio.trim();
         }
 
         // --- CRUD Y GESTIÓN ---
@@ -316,14 +273,13 @@
                 
                 lista.forEach(item => {
                     var estado = item.pagado ? "pagado" : (item.url_rev ? "esperando-pago" : "pendiente");
-                    
                     var htmlFechas = `<span class="date-item">📅 Alta: ${item.f_alta}</span>`;
                     var botonAccion = "";
                     var etiqueta = "";
 
-                    // BLOQUE NOTAS AÑADIDO
+                    // BLOQUE NOTAS (Visible ahora)
                     var htmlNotas = "";
-                    if (item.notas && item.notas.toString().trim() !== "") {
+                    if (item.notas && item.notas != "") {
                         htmlNotas = `<div class="card-info" style="font-style:italic; font-size:12px; color:#555; margin-top:5px; border-top:1px dashed #eee; padding-top:5px;">
                                         📝 ${item.notas}
                                      </div>`;
