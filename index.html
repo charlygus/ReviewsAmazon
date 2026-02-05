@@ -253,7 +253,7 @@
 
             if (tituloDetectado.length > 0) {
                 var textoSucio = tituloDetectado.join(" ");
-                // Usamos la nueva "Escoba Industrial"
+                // Usamos la "Escoba Industrial"
                 var textoLimpio = limpiarTextoRuido(textoSucio);
 
                 document.getElementById("n_nombre").value = textoLimpio;
@@ -265,15 +265,13 @@
         function limpiarTextoRuido(texto) {
             var limpio = texto;
 
-            // 1. ELIMINAR BASURA GLOBAL (Cualquier símbolo de estos en CUALQUIER sitio)
-            // Quitamos: \ | [ ] { } _ < > *
+            // 1. ELIMINAR BASURA GLOBAL
             limpio = limpio.replace(/[\\|\[\]{}_<>*]/g, " ");
 
             // 2. ELIMINAR PUNTUACIÓN "FLOTANTE"
-            // Ej: "palabra . palabra" -> se queda "palabra palabra"
             limpio = limpio.replace(/\s+[\.\,\-\;]\s+/g, " ");
 
-            // 3. LIMPIEZA INICIAL (Igual que antes, para el principio del texto)
+            // 3. LIMPIEZA INICIAL
             limpio = limpio.replace(/^[^a-zA-Z0-9(Á-Úá-ú]+/, "");
             limpio = limpio.replace(/^\d\s+(?=[A-Z])/, "");
 
@@ -323,6 +321,14 @@
                     var botonAccion = "";
                     var etiqueta = "";
 
+                    // BLOQUE NOTAS AÑADIDO
+                    var htmlNotas = "";
+                    if (item.notas && item.notas.toString().trim() !== "") {
+                        htmlNotas = `<div class="card-info" style="font-style:italic; font-size:12px; color:#555; margin-top:5px; border-top:1px dashed #eee; padding-top:5px;">
+                                        📝 ${item.notas}
+                                     </div>`;
+                    }
+
                     if (item.pagado) {
                         etiqueta = "<span class='badge bg-ok'>COMPLETADO</span>";
                         if(item.f_review) htmlFechas += ` <span class="date-item">| ⭐ Rev: ${item.f_review}</span>`;
@@ -343,7 +349,7 @@
                             </div>
                             <div class="card-pedido">${item.pedido}</div>
                             <div class="card-info">Vendedor: ${item.contacto}</div>
-                            ${item.notas ? `<div class="card-info" style="font-style:italic; font-size:12px">📝 ${item.notas}</div>` : ''}
+                            ${htmlNotas}
                             <div class="card-dates">${htmlFechas}</div>
                             <div class="card-actions">
                                 ${botonAccion}
