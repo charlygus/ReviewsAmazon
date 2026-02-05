@@ -24,7 +24,7 @@
         .header { text-align: center; margin-bottom: 20px; }
         .mi-logo { max-width: 180px; height: auto; margin-bottom: 5px; }
 
-        /* TABS - Sin emojis según instrucción */
+        /* TABS */
         .tabs { display: flex; margin-bottom: 20px; border-bottom: 2px solid #ddd; }
         .tab { 
             flex: 1; padding: 12px 5px; text-align: center; cursor: pointer; font-weight: bold; 
@@ -167,7 +167,9 @@
     <p id="mensaje"></p>
 
     <script>
-        var scriptURL = "TU_URL_DE_SCRIPT_AQUI"; 
+        // --- 🔴 PEGA AQUÍ TU URL DE SCRIPT 🔴 ---
+        var scriptURL = "https://script.google.com/macros/s/AKfycbzNCTFTv8IbxbR0BhuQbbOXgA46BfXwQtHzkjf3acuTRT8K7B2tFRGRXWZxKmNQ_Cqo1g/exec"; 
+        // -----------------------------------------------
 
         document.addEventListener("DOMContentLoaded", function() {
             cargarVendedores();
@@ -195,33 +197,71 @@
             if (input.files && input.files[0]) {
                 var estado = document.getElementById("estado-ocr");
                 estado.style.display = "block";
-                estado.innerText = "Analizando imagen...";
+                estado.innerText = "⏳ Leyendo imagen...";
 
                 Tesseract.recognize(input.files[0], 'eng')
                 .then(({ data: { text } }) => {
                     rellenarDesdeOCR(text);
-                    estado.innerText = "Lectura completada";
-                    setTimeout(() => estado.style.display = "none", 2000);
+                    estado.innerText = "✨ ¡Datos leídos!";
+                    setTimeout(() => estado.style.display = "none", 2500);
+                })
+                .catch(err => {
+                    console.error(err);
+                    estado.innerText = "❌ Error lectura";
                 });
             }
         }
 
         function rellenarDesdeOCR(texto) {
-            // Buscar Pedido
+            // 1. Buscar Pedido (XXX-XXXXXXX-XXXXXXX)
             var matchPedido = texto.match(/\d{3}-\d{7}-\d{7}/);
-            if (matchPedido) document.getElementById("n_pedido").value = matchPedido[0];
+            if (matchPedido) {
+                document.getElementById("n_pedido").value = matchPedido[0];
+                document.getElementById("n_pedido").style.backgroundColor = "#e8f5e9";
+            }
 
-            // Buscar Precio
+            // 2. Buscar Precio
             var matchPrecio = texto.match(/(\d+[,.]\d{1,2})\s?[€]/);
-            if (matchPrecio) document.getElementById("n_precio").value = matchPrecio[1].replace(",", ".");
+            if (matchPrecio) {
+                document.getElementById("n_precio").value = matchPrecio[1].replace(",", ".");
+                document.getElementById("n_precio").style.backgroundColor = "#e8f5e9";
+            }
 
-            // Buscar Nombre (Línea antes de 'Vendido por')
+            // 3. Buscar Nombre (NUEVA LÓGICA MULTILÍNEA)
             var lineas = texto.split('\n');
+            var tituloDetectado = [];
+            
             for (var i = 0; i < lineas.length; i++) {
-                if (lineas[i].toLowerCase().includes("vendido por") && i > 0) {
-                    document.getElementById("n_nombre").value = lineas[i-1].trim();
-                    break;
+                var lineaActual = lineas[i].trim();
+
+                // Buscamos el ancla "Vendido por" o "Sold by"
+                if (lineaActual.toLowerCase().includes("vendido por") || lineaActual.toLowerCase().includes("sold by")) {
+                    
+                    // Cuando lo encontramos, miramos HACIA ARRIBA (hasta 3 líneas)
+                    for (var j = 1; j <= 3; j++) {
+                        var posibleLinea = lineas[i - j];
+                        if (!posibleLinea) break; // Fin del archivo
+                        
+                        posibleLinea = posibleLinea.trim();
+
+                        // SI ENCONTRAMOS ESTO, PARAMOS DE LEER:
+                        if (posibleLinea.includes("Llega")) break; // "Llega mañana"
+                        if (posibleLinea.includes("Entregado")) break; // "Entregado el..."
+                        if (posibleLinea.includes("€")) break; // El precio
+                        if (posibleLinea.length < 3) break; // Líneas vacías o ruido
+
+                        // Si pasa el filtro, lo añadimos AL PRINCIPIO del array
+                        tituloDetectado.unshift(posibleLinea);
+                    }
+                    
+                    // Ya hemos encontrado el bloque, salimos del bucle principal
+                    break; 
                 }
+            }
+
+            if (tituloDetectado.length > 0) {
+                document.getElementById("n_nombre").value = tituloDetectado.join(" ");
+                document.getElementById("n_nombre").style.backgroundColor = "#e8f5e9";
             }
         }
 
@@ -249,26 +289,61 @@
 
         function cargarListado() {
             var contenedor = document.getElementById("contenedor-tarjetas");
+            contenedor.innerHTML = '<p class="loading-spinner">⏳ Cargando...</p>';
+            
             var datos = new FormData();
             datos.append("accion", "leer");
             fetch(scriptURL, { method: 'POST', body: datos })
             .then(r => r.json()).then(lista => {
                 contenedor.innerHTML = "";
+                if (lista.length === 0) { contenedor.innerHTML = "<p style='text-align:center'>Vacío</p>"; return; }
+                
                 lista.forEach(item => {
                     var estado = item.pagado ? "pagado" : (item.url_rev ? "esperando-pago" : "pendiente");
+                    
+                    var htmlFechas = `<span class="date-item">📅 Alta: ${item.f_alta}</span>`;
+                    var botonAccion = "";
+                    var etiqueta = "";
+
+                    if (item.pagado) {
+                        etiqueta = "<span class='badge bg-ok'>COMPLETADO</span>";
+                        if(item.f_review) htmlFechas += ` <span class="date-item">| ⭐ Rev: ${item.f_review}</span>`;
+                        if(item.f_pago) htmlFechas += ` <span class="date-item">| 💰 Pago: ${item.f_pago}</span>`;
+                    } else if (item.url_rev) {
+                        etiqueta = "<span class='badge bg-pay'>Esperando Pago</span>";
+                        botonAccion = `<button class="btn-card btn-pagar" onclick="marcarPagado('${item.pedido}')">💰 Confirmar</button>`;
+                        if(item.f_review) htmlFechas += ` <span class="date-item">| ⭐ Rev: ${item.f_review}</span>`;
+                    } else {
+                         etiqueta = "<span class='badge bg-wait'>Falta Review</span>";
+                    }
+
                     contenedor.innerHTML += `
                         <div class="card ${estado}">
                             <div class="card-header">
-                                <div class="card-prod">${item.nombre}</div>
+                                <div class="card-prod">${item.nombre} ${etiqueta}</div>
                                 <div class="card-price">${item.precio}€</div>
                             </div>
                             <div class="card-pedido">${item.pedido}</div>
                             <div class="card-info">Vendedor: ${item.contacto}</div>
-                            <div class="card-dates">Alta: ${item.f_alta}</div>
+                            ${item.notas ? `<div class="card-info" style="font-style:italic; font-size:12px">📝 ${item.notas}</div>` : ''}
+                            <div class="card-dates">${htmlFechas}</div>
+                            <div class="card-actions">
+                                ${botonAccion}
+                                <button class="btn-card btn-copy-id" onclick="copiarTexto('${item.pedido}')">📋 ID</button>
+                            </div>
                         </div>`;
                 });
             });
         }
+
+        function marcarPagado(pedidoId) {
+            if(!confirm("¿Cobrado?")) return;
+            var msj = document.getElementById("mensaje"); msj.innerText = "⏳ Procesando...";
+            var datos = new FormData(); datos.append("accion", "marcar_pagado"); datos.append("pedido", pedidoId);
+            fetch(scriptURL, { method: 'POST', body: datos }).then(() => { msj.innerText = "✅ Hecho"; cargarListado(); });
+        }
+
+        function copiarTexto(t) { navigator.clipboard.writeText(t).then(() => alert("Copiado: " + t)); }
 
         function enviarNuevo() {
             var msj = document.getElementById("mensaje");
@@ -276,6 +351,8 @@
                            document.getElementById("n_contacto_manual").value : 
                            document.getElementById("sel_vendedores").value;
             
+            if (!document.getElementById("n_pedido").value) { msj.innerText = "❌ Falta Pedido"; return; }
+
             msj.innerText = "Guardando...";
             var datos = new FormData();
             datos.append("accion", "nuevo");
@@ -286,9 +363,26 @@
             datos.append("notas", document.getElementById("n_notas").value);
 
             fetch(scriptURL, { method: 'POST', body: datos }).then(() => {
-                msj.innerText = "Hecho";
+                msj.innerText = "✅ Guardado";
                 limpiarCampos('nuevo');
                 cargarVendedores();
+                setTimeout(() => msj.innerText = "", 2000);
+            });
+        }
+
+        function enviarActualizacion() {
+            var msj = document.getElementById("mensaje");
+            if (!document.getElementById("a_pedido").value) { msj.innerText = "❌ Falta Pedido"; return; }
+            msj.innerText = "Actualizando...";
+            var datos = new FormData();
+            datos.append("accion", "actualizar");
+            datos.append("pedido", document.getElementById("a_pedido").value);
+            datos.append("fecha", document.getElementById("a_fecha").value);
+            datos.append("url_review", document.getElementById("a_url_review").value);
+            fetch(scriptURL, { method: 'POST', body: datos }).then(() => {
+                msj.innerText = "✅ Actualizado";
+                limpiarCampos('actualizar');
+                setTimeout(() => msj.innerText = "", 2000);
             });
         }
 
@@ -297,7 +391,17 @@
                 ["n_nombre", "n_pedido", "n_precio", "n_notas", "n_contacto_manual"].forEach(id => document.getElementById(id).value = "");
                 document.getElementById("sel_vendedores").value = "";
                 document.getElementById("n_contacto_manual").style.display = "none";
+                ["n_pedido", "n_precio", "n_nombre"].forEach(id => document.getElementById(id).style.backgroundColor = "#f9f9f9");
+            } else {
+                ["a_pedido", "a_fecha", "a_url_review"].forEach(id => document.getElementById(id).value = "");
             }
+        }
+        
+        function copiarInfo() {
+            var p = document.getElementById("a_pedido").value;
+            var u = document.getElementById("a_url_review").value;
+            if(!p || !u) { alert("Faltan datos"); return; }
+            navigator.clipboard.writeText(p + "\n" + u + "\n" + "elisagundinmorales@gmail.com").then(() => alert("Copiado al portapapeles"));
         }
     </script>
 </body>
