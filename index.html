@@ -10,6 +10,8 @@
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#ffffff">
 
+    <script src='https://unpkg.com/tesseract.js@v2.1.0/dist/tesseract.min.js'></script>
+
     <style>
         /* MODO APP */
         * { -webkit-tap-highlight-color: transparent; }
@@ -22,7 +24,7 @@
         .header { text-align: center; margin-bottom: 20px; }
         .mi-logo { max-width: 180px; height: auto; margin-bottom: 5px; }
 
-        /* TABS */
+        /* TABS - Sin emojis según instrucción */
         .tabs { display: flex; margin-bottom: 20px; border-bottom: 2px solid #ddd; }
         .tab { 
             flex: 1; padding: 12px 5px; text-align: center; cursor: pointer; font-weight: bold; 
@@ -47,6 +49,12 @@
         textarea { height: 70px; resize: vertical; }
         input:focus, textarea:focus, select:focus { border-color: #007bff; background-color: #fff; outline: none; }
 
+        /* ZONA ESCÁNER */
+        .scanner-box {
+            background: #f0f4ff; border: 2px dashed #007bff; border-radius: 10px; 
+            padding: 15px; text-align: center; margin-bottom: 20px;
+        }
+
         /* BOTONES */
         .botones { display: flex; gap: 10px; margin-top: 25px; }
         button { flex: 1; padding: 15px; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; color: white; transition: 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
@@ -58,44 +66,22 @@
         #mensaje { text-align: center; margin-top: 15px; font-weight: bold; min-height: 20px; color: #333; }
 
         /* TARJETAS LISTADO */
-        .card {
-            background: white; border-radius: 10px; padding: 15px; margin-bottom: 15px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.08); border-left: 6px solid #ccc; position: relative;
-        }
-        
+        .card { background: white; border-radius: 10px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.08); border-left: 6px solid #ccc; position: relative; }
         .card.pendiente { border-left-color: #ff9800; } 
         .card.esperando-pago { border-left-color: #17a2b8; } 
         .card.pagado { border-left-color: #28a745; } 
-
         .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
         .card-prod { font-weight: bold; font-size: 16px; color: #333; width: 85%; }
-        .card-price { font-weight: bold; color: #555; background: #eee; padding: 2px 6px; border-radius: 4px; font-size: 13px; white-space: nowrap; }
-
+        .card-price { font-weight: bold; color: #555; background: #eee; padding: 2px 6px; border-radius: 4px; font-size: 13px; }
         .card-pedido { font-family: monospace; font-size: 14px; color: #555; background: #fdfdfd; padding: 5px; border: 1px dashed #ccc; display: inline-block; margin-bottom: 8px; }
-        
         .card-info { font-size: 13px; color: #666; margin-bottom: 5px; }
         .card-info span { font-weight: bold; color: #444; }
-
-        /* FECHAS EN EL PIE DE LA TARJETA */
-        .card-dates {
-            margin-top: 10px; padding-top: 8px; border-top: 1px solid #eee;
-            font-size: 11px; color: #888; text-align: right;
-        }
+        .card-dates { margin-top: 10px; padding-top: 8px; border-top: 1px solid #eee; font-size: 11px; color: #888; text-align: right; }
         .date-item { margin-left: 8px; display: inline-block; }
-
-        .card-actions { margin-top: 12px; display: flex; gap: 10px; flex-wrap: wrap; }
-        .btn-card { padding: 8px; font-size: 13px; border-radius: 5px; flex: 1; text-align: center; text-decoration: none; color: white; font-weight: normal; border: none; cursor: pointer; }
-        .btn-copy-id { background: #6c757d; }
-        .btn-link { background: #007bff; display: block; }
-        .btn-pagar { background: #17a2b8; font-weight: bold; border: 1px solid #138496; }
-        
         .badge { display: inline-block; padding: 3px 6px; font-size: 10px; border-radius: 4px; color: white; vertical-align: middle; margin-left: 5px;}
         .bg-ok { background: #28a745; }    
         .bg-wait { background: #ff9800; }  
         .bg-pay { background: #17a2b8; }  
-
-        .loading-spinner { text-align: center; padding: 20px; color: #666; font-style: italic; }
-
     </style>
 </head>
 <body>
@@ -111,12 +97,20 @@
     </div>
 
     <div id="form-nuevo" class="form-section active">
+        
+        <div class="scanner-box">
+            <p style="margin: 0 0 10px 0; font-weight: bold; color: #0056b3;">Escaneo automático</p>
+            <input type="file" id="input-imagen" accept="image/*" style="display: none;" onchange="procesarImagen(this)">
+            <button onclick="document.getElementById('input-imagen').click()" style="background: #007bff; padding: 8px 15px; width: auto; font-size: 14px;">Subir Captura</button>
+            <p id="estado-ocr" style="font-size: 12px; color: #666; margin-top: 10px; display: none;">Analizando...</p>
+        </div>
+
         <div class="grupo-input">
             <label>Producto:</label>
             <input type="text" id="n_nombre">
         </div>
         <div class="grupo-input">
-            <label>Nº Pedido (Importante):</label>
+            <label>Nº Pedido:</label>
             <input type="text" id="n_pedido" placeholder="Ej: 123-456789-000">
         </div>
         
@@ -125,7 +119,7 @@
             <select id="sel_vendedores" onchange="verificarVendedorManual()">
                 <option value="">Cargando lista...</option>
             </select>
-            <input type="text" id="n_contacto_manual" placeholder="Escribe el nombre del nuevo vendedor..." style="display:none; margin-top:10px; border-color: #ff9800;">
+            <input type="text" id="n_contacto_manual" placeholder="Nombre del nuevo vendedor..." style="display:none; margin-top:10px; border-color: #ff9800;">
         </div>
 
         <div class="grupo-input">
@@ -138,19 +132,15 @@
         </div>
 
         <div class="botones">
-            <button class="btn-reset" onclick="limpiarCampos('nuevo')">🧹 Borrar</button>
-            <button class="btn-guardar" onclick="enviarNuevo()">💾 Guardar</button>
+            <button class="btn-reset" onclick="limpiarCampos('nuevo')">Borrar</button>
+            <button class="btn-guardar" onclick="enviarNuevo()">Guardar</button>
         </div>
     </div>
 
     <div id="form-actualizar" class="form-section">
-        <p style="text-align:center; color:#666; font-size:14px; margin-bottom:20px;">
-            Introduce el Nº de Pedido para añadir la review.
-        </p>
-
         <div class="grupo-input">
             <label>Nº Pedido (Buscador):</label>
-            <input type="text" id="a_pedido" placeholder="Pega aquí el pedido original">
+            <input type="text" id="a_pedido">
         </div>
         <div class="grupo-input">
             <label>Fecha Review:</label>
@@ -162,36 +152,23 @@
         </div>
 
         <div class="botones">
-            <button class="btn-reset" onclick="limpiarCampos('actualizar')">🧹</button>
-            <button class="btn-guardar" onclick="enviarActualizacion()">🔄 Actualizar</button>
-            <button class="btn-copiar" onclick="copiarInfo()">📋 Copiar Info</button>
+            <button class="btn-reset" onclick="limpiarCampos('actualizar')">Borrar</button>
+            <button class="btn-guardar" onclick="enviarActualizacion()">Actualizar</button>
+            <button class="btn-copiar" onclick="copiarInfo()">Copiar Info</button>
         </div>
     </div>
 
     <div id="form-listado" class="form-section">
-        <div style="text-align: right; margin-bottom: 10px;">
-            <button onclick="cargarListado()" style="padding: 5px 10px; font-size: 14px; background: #666; width: auto;">🔄 Refrescar Lista</button>
-        </div>
         <div id="contenedor-tarjetas">
-            <p class="loading-spinner">Pulsa la pestaña para cargar...</p>
+            <p style="text-align:center">Cargando...</p>
         </div>
     </div>
 
     <p id="mensaje"></p>
 
     <script>
-        // --- 🟢 SOLUCIÓN TECLADO MÓVIL ---
-        document.addEventListener('touchmove', function(e) {
-            if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') {
-                document.activeElement.blur(); 
-            }
-        });
+        var scriptURL = "TU_URL_DE_SCRIPT_AQUI"; 
 
-        // --- 🔴 TU SCRIPT URL ORIGINAL 🔴 ---
-        var scriptURL = "https://script.google.com/macros/s/AKfycbzNCTFTv8IbxbR0BhuQbbOXgA46BfXwQtHzkjf3acuTRT8K7B2tFRGRXWZxKmNQ_Cqo1g/exec"; 
-        // -----------------------------------------------
-
-        // Cargar vendedores al iniciar la app
         document.addEventListener("DOMContentLoaded", function() {
             cargarVendedores();
         });
@@ -200,7 +177,6 @@
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.form-section').forEach(f => f.classList.remove('active'));
             document.getElementById('mensaje').innerText = "";
-
             if (modo === 'nuevo') {
                 document.querySelectorAll('.tab')[0].classList.add('active');
                 document.getElementById('form-nuevo').classList.add('active');
@@ -214,253 +190,115 @@
             }
         }
 
-        // --- NUEVA FUNCIÓN: Cargar Vendedores ---
+        // --- LÓGICA OCR (LECTURA DE IMAGEN) ---
+        function procesarImagen(input) {
+            if (input.files && input.files[0]) {
+                var estado = document.getElementById("estado-ocr");
+                estado.style.display = "block";
+                estado.innerText = "Analizando imagen...";
+
+                Tesseract.recognize(input.files[0], 'eng')
+                .then(({ data: { text } }) => {
+                    rellenarDesdeOCR(text);
+                    estado.innerText = "Lectura completada";
+                    setTimeout(() => estado.style.display = "none", 2000);
+                });
+            }
+        }
+
+        function rellenarDesdeOCR(texto) {
+            // Buscar Pedido
+            var matchPedido = texto.match(/\d{3}-\d{7}-\d{7}/);
+            if (matchPedido) document.getElementById("n_pedido").value = matchPedido[0];
+
+            // Buscar Precio
+            var matchPrecio = texto.match(/(\d+[,.]\d{1,2})\s?[€]/);
+            if (matchPrecio) document.getElementById("n_precio").value = matchPrecio[1].replace(",", ".");
+
+            // Buscar Nombre (Línea antes de 'Vendido por')
+            var lineas = texto.split('\n');
+            for (var i = 0; i < lineas.length; i++) {
+                if (lineas[i].toLowerCase().includes("vendido por") && i > 0) {
+                    document.getElementById("n_nombre").value = lineas[i-1].trim();
+                    break;
+                }
+            }
+        }
+
+        // --- CRUD Y GESTIÓN ---
         function cargarVendedores() {
             var sel = document.getElementById("sel_vendedores");
-            // Mantenemos lo que hay o ponemos cargando, solo si está vacío
-            if(sel.options.length <= 1) sel.innerHTML = "<option value=''>⏳ Cargando...</option>";
-
             var datos = new FormData();
             datos.append("accion", "leer_vendedores");
-
             fetch(scriptURL, { method: 'POST', body: datos })
-            .then(response => response.json())
-            .then(lista => {
-                sel.innerHTML = "<option value=''>-- Selecciona Vendedor --</option>";
+            .then(r => r.json()).then(lista => {
+                sel.innerHTML = "<option value=''>Selecciona Vendedor</option>";
                 lista.forEach(v => {
                     var opt = document.createElement("option");
-                    opt.value = v;
-                    opt.innerText = v;
-                    sel.appendChild(opt);
+                    opt.value = v; opt.innerText = v; sel.appendChild(opt);
                 });
-                // Opción manual
-                var optManual = document.createElement("option");
-                optManual.value = "OTRO";
-                optManual.innerText = "➕ NUEVO (Escribir a mano)...";
-                optManual.style.fontWeight = "bold";
-                sel.appendChild(optManual);
-            })
-            .catch(e => {
-                sel.innerHTML = "<option value=''>Error al cargar</option>";
+                var optM = document.createElement("option");
+                optM.value = "OTRO"; optM.innerText = "+ NUEVO"; sel.appendChild(optM);
             });
         }
 
-        // --- NUEVA FUNCIÓN: Verificar si es manual ---
         function verificarVendedorManual() {
             var sel = document.getElementById("sel_vendedores");
-            var inputManual = document.getElementById("n_contacto_manual");
-            
-            if (sel.value === "OTRO") {
-                inputManual.style.display = "block";
-                inputManual.focus();
-            } else {
-                inputManual.style.display = "none";
-                inputManual.value = ""; 
-            }
+            document.getElementById("n_contacto_manual").style.display = (sel.value === "OTRO") ? "block" : "none";
         }
 
         function cargarListado() {
             var contenedor = document.getElementById("contenedor-tarjetas");
-            contenedor.innerHTML = '<p class="loading-spinner">⏳ Cargando pedidos...</p>';
-
             var datos = new FormData();
             datos.append("accion", "leer");
-
             fetch(scriptURL, { method: 'POST', body: datos })
-            .then(response => response.json()) 
-            .then(lista => {
-                contenedor.innerHTML = ""; 
-                
-                if (lista.length === 0) {
-                    contenedor.innerHTML = "<p style='text-align:center'>No hay pedidos recientes.</p>";
-                    return;
-                }
-
+            .then(r => r.json()).then(lista => {
+                contenedor.innerHTML = "";
                 lista.forEach(item => {
-                    var tieneReview = item.url_rev && item.url_rev.length > 5;
-                    var estaPagado = (item.pagado === true || item.pagado === "true" || item.pagado === "TRUE");
-
-                    var claseEstado = "pendiente"; 
-                    var etiqueta = "<span class='badge bg-wait'>Falta Review</span>";
-                    var botonAccion = ""; 
-                    
-                    var htmlFechas = `<span class="date-item">📅 Alta: ${item.f_alta}</span>`;
-
-                    if (estaPagado) {
-                        claseEstado = "pagado"; 
-                        etiqueta = "<span class='badge bg-ok'>COMPLETADO</span>";
-                        if(item.f_review) htmlFechas += ` <span class="date-item">| ⭐ Rev: ${item.f_review}</span>`;
-                        if(item.f_pago) htmlFechas += ` <span class="date-item">| 💰 Pago: ${item.f_pago}</span>`;
-
-                    } else if (tieneReview) {
-                        claseEstado = "esperando-pago"; 
-                        etiqueta = "<span class='badge bg-pay'>Esperando Pago</span>";
-                        botonAccion = `<button class="btn-card btn-pagar" onclick="marcarPagado('${item.pedido}')">💰 Confirmar Cobro</button>`;
-                        if(item.f_review) htmlFechas += ` <span class="date-item">| ⭐ Rev: ${item.f_review}</span>`;
-                    }
-
-                    var html = `
-                    <div class="card ${claseEstado}">
-                        <div class="card-header">
-                            <div class="card-prod">${item.nombre || "Sin nombre"} ${etiqueta}</div>
-                            <div class="card-price">${item.precio}€</div>
-                        </div>
-                        
-                        <div class="card-pedido">${item.pedido}</div>
-                        
-                        <div class="card-info"><span>Vendedor:</span> ${item.contacto}</div>
-                        ${item.notas ? `<div class="card-info" style="font-style:italic; font-size:12px">📝 ${item.notas}</div>` : ''}
-
-                        <div class="card-dates">
-                            ${htmlFechas}
-                        </div>
-
-                        <div class="card-actions">
-                            ${botonAccion}
-                            <button class="btn-card btn-copy-id" onclick="copiarTexto('${item.pedido}')">📋 ID</button>
-                            ${item.url_pedido ? `<a href="${item.url_pedido}" target="_blank" class="btn-card btn-link">🔗 Link</a>` : ''}
-                        </div>
-                    </div>
-                    `;
-                    contenedor.innerHTML += html;
+                    var estado = item.pagado ? "pagado" : (item.url_rev ? "esperando-pago" : "pendiente");
+                    contenedor.innerHTML += `
+                        <div class="card ${estado}">
+                            <div class="card-header">
+                                <div class="card-prod">${item.nombre}</div>
+                                <div class="card-price">${item.precio}€</div>
+                            </div>
+                            <div class="card-pedido">${item.pedido}</div>
+                            <div class="card-info">Vendedor: ${item.contacto}</div>
+                            <div class="card-dates">Alta: ${item.f_alta}</div>
+                        </div>`;
                 });
-            })
-            .catch(error => {
-                console.error(error);
-                contenedor.innerHTML = "<p style='text-align:center; color:red'>Error al cargar. Revisa la conexión.</p>";
             });
         }
 
-        function marcarPagado(pedidoId) {
-            if(!confirm("¿Confirmas que has recibido el dinero de este pedido?")) return;
-
+        function enviarNuevo() {
             var msj = document.getElementById("mensaje");
-            msj.innerText = "⏳ Marcando como pagado...";
+            var contacto = document.getElementById("sel_vendedores").value === "OTRO" ? 
+                           document.getElementById("n_contacto_manual").value : 
+                           document.getElementById("sel_vendedores").value;
             
+            msj.innerText = "Guardando...";
             var datos = new FormData();
-            datos.append("accion", "marcar_pagado");
-            datos.append("pedido", pedidoId);
+            datos.append("accion", "nuevo");
+            datos.append("nombre", document.getElementById("n_nombre").value);
+            datos.append("pedido", document.getElementById("n_pedido").value);
+            datos.append("contacto", contacto);
+            datos.append("precio", document.getElementById("n_precio").value);
+            datos.append("notas", document.getElementById("n_notas").value);
 
-            fetch(scriptURL, { method: 'POST', body: datos })
-            .then(response => response.text())
-            .then(texto => {
-                msj.innerText = "✅ ¡Cobrado!";
-                cargarListado(); 
-            });
-        }
-
-        function copiarTexto(texto) {
-            navigator.clipboard.writeText(texto).then(() => {
-                var msj = document.getElementById("mensaje");
-                msj.innerText = "Copiado: " + texto;
-                setTimeout(() => msj.innerText = "", 1500);
+            fetch(scriptURL, { method: 'POST', body: datos }).then(() => {
+                msj.innerText = "Hecho";
+                limpiarCampos('nuevo');
+                cargarVendedores();
             });
         }
 
         function limpiarCampos(modo) {
             if (modo === 'nuevo') {
-                document.getElementById('n_nombre').value = "";
-                document.getElementById('n_pedido').value = "";
-                // Limpiamos select y manual
-                document.getElementById('sel_vendedores').value = "";
-                document.getElementById('n_contacto_manual').value = "";
-                document.getElementById('n_contacto_manual').style.display = "none";
-                
-                document.getElementById('n_precio').value = "";
-                document.getElementById('n_notas').value = "";
-            } else {
-                document.getElementById('a_pedido').value = "";
-                document.getElementById('a_fecha').value = "";
-                document.getElementById('a_url_review').value = "";
+                ["n_nombre", "n_pedido", "n_precio", "n_notas", "n_contacto_manual"].forEach(id => document.getElementById(id).value = "");
+                document.getElementById("sel_vendedores").value = "";
+                document.getElementById("n_contacto_manual").style.display = "none";
             }
-        }
-
-        function enviarNuevo() {
-            var msj = document.getElementById("mensaje");
-            var pedido = document.getElementById("n_pedido").value;
-            
-            // LÓGICA VENDEDOR (Select o Manual)
-            var selectVendedor = document.getElementById("sel_vendedores");
-            var contactoFinal = "";
-            
-            if (selectVendedor.value === "OTRO") {
-                contactoFinal = document.getElementById("n_contacto_manual").value;
-                if(contactoFinal.trim() === "") { msj.innerText = "❌ Escribe el nombre del nuevo vendedor"; return; }
-            } else {
-                contactoFinal = selectVendedor.value;
-            }
-
-            if (!pedido) { msj.innerText = "❌ Falta el Nº de Pedido"; return; }
-
-            msj.innerText = "⏳ Guardando...";
-            var datos = new FormData();
-            datos.append("accion", "nuevo");
-            datos.append("nombre", document.getElementById("n_nombre").value);
-            datos.append("pedido", pedido);
-            // URL ELIMINADA: No se envía
-            datos.append("contacto", contactoFinal);
-            datos.append("precio", document.getElementById("n_precio").value);
-            datos.append("notas", document.getElementById("n_notas").value);
-            
-            enviarAGoogle(datos, "nuevo");
-
-            // Si hemos metido uno nuevo, recargamos la lista en 3s
-            if (selectVendedor.value === "OTRO") {
-                setTimeout(cargarVendedores, 3000); 
-            }
-        }
-
-        function enviarActualizacion() {
-            var msj = document.getElementById("mensaje");
-            var pedido = document.getElementById("a_pedido").value;
-            if (!pedido) { msj.innerText = "❌ Falta el Nº de Pedido"; return; }
-
-            msj.innerText = "⏳ Actualizando...";
-            var datos = new FormData();
-            datos.append("accion", "actualizar");
-            datos.append("pedido", pedido);
-            datos.append("fecha", document.getElementById("a_fecha").value);
-            datos.append("url_review", document.getElementById("a_url_review").value);
-            enviarAGoogle(datos, "actualizar");
-        }
-
-        function enviarAGoogle(formData, modo) {
-            var msj = document.getElementById("mensaje");
-            fetch(scriptURL, { method: 'POST', body: formData })
-            .then(response => response.text())
-            .then(texto => {
-                if (texto.includes("No encontrado")) {
-                    msj.innerText = "⚠️ No existe ese Pedido.";
-                } else {
-                    msj.innerText = "✅ ¡Hecho!";
-                    setTimeout(() => { 
-                        limpiarCampos(modo); 
-                        msj.innerText = "";
-                    }, 1500);
-                }
-            })
-            .catch(error => { msj.innerText = "❌ Error de conexión."; });
-        }
-
-        function copiarInfo() {
-            var pedido = document.getElementById("a_pedido").value;
-            var urlRev = document.getElementById("a_url_review").value;
-            var miPaypal = "elisagundinmorales@gmail.com";
-
-            if(!pedido || !urlRev) {
-                alert("Rellena Nº Pedido y URL Review para poder copiar.");
-                return;
-            }
-
-            var texto = pedido + "\n" +
-                        urlRev + "\n" +
-                        miPaypal;
-
-            navigator.clipboard.writeText(texto).then(() => {
-                alert("✅ DATOS COPIADOS AL PORTAPAPELES:\n\n" + texto);
-            });
         }
     </script>
-
 </body>
 </html>
