@@ -227,14 +227,14 @@
                 document.getElementById("n_precio").style.backgroundColor = "#e8f5e9";
             }
 
-            // 3. Buscar Nombre (NUEVA LÓGICA + LIMPIEZA)
+            // 3. Buscar Nombre (LÓGICA MEJORADA CON FILTRO)
             var lineas = texto.split('\n');
             var tituloDetectado = [];
             
             for (var i = 0; i < lineas.length; i++) {
                 var lineaActual = lineas[i].trim();
 
-                // Buscamos el ancla "Vendido por"
+                // Buscamos el ancla "Vendido por" o "Sold by"
                 if (lineaActual.toLowerCase().includes("vendido por") || lineaActual.toLowerCase().includes("sold by")) {
                     
                     // Cuando lo encontramos, miramos HACIA ARRIBA (hasta 3 líneas)
@@ -257,19 +257,36 @@
             }
 
             if (tituloDetectado.length > 0) {
-                var textoFinal = tituloDetectado.join(" ");
+                var textoSucio = tituloDetectado.join(" ");
+                // Pasamos la escoba nueva
+                var textoLimpio = limpiarTextoRuido(textoSucio);
 
-                // --- 🧹 LIMPIEZA DE BASURA AL INICIO ---
-                // 1. Quitar símbolos raros al principio (ej: | - _ )
-                textoFinal = textoFinal.replace(/^[^a-zA-Z0-9(]+/, ""); 
-                
-                // 2. Quitar un dígito suelto seguido de espacio si después viene mayúscula
-                // Esto arregla el problema de "3 T Tenegil" -> "T Tenegil"
-                textoFinal = textoFinal.replace(/^\d\s(?=[A-Z])/, "");
-
-                document.getElementById("n_nombre").value = textoFinal;
+                document.getElementById("n_nombre").value = textoLimpio;
                 document.getElementById("n_nombre").style.backgroundColor = "#e8f5e9";
             }
+        }
+
+        // --- NUEVA FUNCIÓN: LA ESCOBA DE RUIDO OCR ---
+        function limpiarTextoRuido(texto) {
+            var limpio = texto;
+
+            // 1. Quitar caracteres que son fallos visuales de la imagen (barras, corchetes, slashes)
+            // Reemplaza \, |, [, ], {, }, _ por un espacio
+            limpio = limpio.replace(/[\\|\[\]{}_]/g, " ");
+
+            // 2. Quitar puntuación flotante absurda (ej: " . " o " ; ")
+            limpio = limpio.replace(/\s+[.,;:]\s+/g, " ");
+
+            // 3. Quitar basura al inicio (caracteres raros al principio)
+            limpio = limpio.replace(/^[^a-zA-Z0-9(Á-Úá-ú]+/, "");
+
+            // 4. Arreglar el "3 T Tenegil" (Digito suelto al inicio + espacio + Mayúscula)
+            limpio = limpio.replace(/^\d\s+(?=[A-Z])/, "");
+
+            // 5. Quitar dobles espacios que hayan quedado
+            limpio = limpio.replace(/\s\s+/g, " ");
+
+            return limpio.trim();
         }
 
         // --- CRUD Y GESTIÓN ---
