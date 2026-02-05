@@ -43,6 +43,10 @@
         .badge { display: inline-block; padding: 3px 6px; font-size: 10px; border-radius: 4px; color: white; margin-left: 5px; }
         .bg-ok { background: #28a745; } .bg-wait { background: #ff9800; } .bg-pay { background: #17a2b8; }
         #mensaje { text-align: center; margin-top: 15px; font-weight: bold; min-height: 20px; color: #333; }
+        .card-actions { margin-top: 10px; display: flex; gap: 5px; }
+        .btn-card { padding: 5px 10px; font-size: 12px; flex: none; width: auto; }
+        .btn-pagar { background: #28a745; }
+        .btn-copy-id { background: #6c757d; }
     </style>
 </head>
 <body>
@@ -87,7 +91,10 @@
         </div>
     </div>
 
-    <div id="form-listado" class="form-section"><div id="contenedor-tarjetas"><p style="text-align:center">Cargando...</p></div></div>
+    <div id="form-listado" class="form-section">
+        <div id="contenedor-tarjetas"><p style="text-align:center">Cargando...</p></div>
+    </div>
+
     <p id="mensaje"></p>
 
     <script>
@@ -118,9 +125,9 @@
                     datos.append("imagen", e.target.result);
                     fetch(scriptURL, { method: 'POST', body: datos }).then(r => r.json()).then(res => {
                         estado.style.display = "none";
-                        if(res.pedido) { document.getElementById("n_pedido").value = res.pedido; document.getElementById("n_pedido").style.backgroundColor = "#e8f5e9"; }
-                        if(res.precio) { document.getElementById("n_precio").value = res.precio; document.getElementById("n_precio").style.backgroundColor = "#e8f5e9"; }
-                        if(res.nombre) { document.getElementById("n_nombre").value = res.nombre; document.getElementById("n_nombre").style.backgroundColor = "#e8f5e9"; }
+                        if(res.pedido) { document.getElementById("n_pedido").value = res.pedido; }
+                        if(res.precio) { document.getElementById("n_precio").value = res.precio; }
+                        if(res.nombre) { document.getElementById("n_nombre").value = res.nombre; }
                     });
                 };
                 reader.readAsDataURL(file);
@@ -147,17 +154,29 @@
                 cont.innerHTML = "";
                 lista.forEach(item => {
                     var estado = item.pagado ? "pagado" : (item.url_rev ? "esperando-pago" : "pendiente");
-                    var notaHtml = item.notas ? `<div style="font-size:12px; color:#555; margin-top:5px; border-top:1px dashed #eee;">📝 ${item.notas}</div>` : "";
+                    var badge = item.pagado ? "<span class='badge bg-ok'>PAGADO</span>" : (item.url_rev ? "<span class='badge bg-pay'>ESPERANDO</span>" : "<span class='badge bg-wait'>PENDIENTE</span>");
+                    var notaHtml = item.notas ? `<div style="font-size:12px; color:#555; margin-top:5px; border-top:1px dashed #eee; padding-top:5px;">📝 ${item.notas}</div>` : "";
+                    var btnPay = (!item.pagado && item.url_rev) ? `<button class="btn-card btn-pagar" onclick="marcarPagado('${item.pedido}')">💰 Cobrado</button>` : "";
+                    
                     cont.innerHTML += `<div class="card ${estado}">
-                        <div style="font-weight:bold;">${item.nombre}</div>
-                        <div style="font-family:monospace; font-size:14px;">${item.pedido}</div>
-                        <div>Vendedor: ${item.contacto} | ${item.precio}€</div>
+                        <div style="font-weight:bold;">${item.nombre} ${badge}</div>
+                        <div style="font-family:monospace; font-size:14px; margin: 5px 0;">${item.pedido}</div>
+                        <div style="font-size:13px;">Vendedor: ${item.contacto} | Precio: ${item.precio}€</div>
                         ${notaHtml}
-                        <div style="font-size:11px; text-align:right;">Alta: ${item.f_alta}</div>
+                        <div style="font-size:11px; text-align:right; color:#888; margin-top:8px;">Alta: ${item.f_alta}</div>
+                        <div class="card-actions">${btnPay} <button class="btn-card btn-copy-id" onclick="copiarTexto('${item.pedido}')">📋 ID</button></div>
                     </div>`;
                 });
             });
         }
+
+        function marcarPagado(id) {
+            if(!confirm("¿Confirmar pago?")) return;
+            var d = new FormData(); d.append("accion", "marcar_pagado"); d.append("pedido", id);
+            fetch(scriptURL, { method: 'POST', body: d }).then(() => cargarListado());
+        }
+
+        function copiarTexto(t) { navigator.clipboard.writeText(t).then(() => alert("Copiado")); }
 
         function enviarNuevo() {
             var msj = document.getElementById("mensaje");
@@ -169,7 +188,7 @@
             d.append("contacto", contacto);
             d.append("precio", document.getElementById("n_precio").value);
             d.append("notas", document.getElementById("n_notas").value);
-            fetch(scriptURL, { method: 'POST', body: d }).then(() => { msj.innerText = "Hecho"; limpiarCampos('nuevo'); cargarVendedores(); });
+            fetch(scriptURL, { method: 'POST', body: d }).then(() => { msj.innerText = "✅ Hecho"; limpiarCampos('nuevo'); cargarVendedores(); });
         }
 
         function enviarActualizacion() {
@@ -179,7 +198,7 @@
             d.append("pedido", document.getElementById("a_pedido").value);
             d.append("fecha", document.getElementById("a_fecha").value);
             d.append("url_review", document.getElementById("a_url_review").value);
-            fetch(scriptURL, { method: 'POST', body: d }).then(() => { msj.innerText = "Hecho"; limpiarCampos('actualizar'); });
+            fetch(scriptURL, { method: 'POST', body: d }).then(() => { msj.innerText = "✅ Hecho"; limpiarCampos('actualizar'); });
         }
 
         function limpiarCampos(m) {
