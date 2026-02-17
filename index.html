@@ -57,8 +57,22 @@
         .search-container { margin-bottom: 15px; }
         #buscador-listado { border: 2px solid #007bff; background: #fff; padding: 10px; font-size: 15px; border-radius: 8px; }
 
-        /* Estilo especial para el selector de pendientes */
         #sel_pendientes { border: 2px solid #ff9800; background-color: #fff8e1; font-weight: bold; }
+
+        /* BARRA DE TOTALES MEJORADA */
+        .total-bar {
+            background-color: #2c3e50;
+            color: #ecf0f1;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            text-align: center;
+            font-size: 13px;
+            display: none; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        .total-amount { font-size: 18px; color: #2ecc71; font-weight: bold; display: block; margin-top: 3px; }
+        .total-desglose { font-size: 11px; color: #bdc3c7; margin-top: 5px; display: block; }
     </style>
 </head>
 <body>
@@ -84,8 +98,8 @@
             <select id="sel_vendedores" onchange="verificarVendedorManual()"><option value="">Cargando lista...</option></select>
             <input type="text" id="n_contacto_manual" placeholder="Nombre del nuevo vendedor..." style="display:none; margin-top:10px; border-color: #ff9800;">
         </div>
-        <div class="grupo-input"><label>Precio:</label><input type="number" step="0.01" id="n_precio"></div>
-        <div class="grupo-input"><label>Notas Iniciales:</label><textarea id="n_notas"></textarea></div>
+        <div class="grupo-input"><label>Precio Base (Lo que pagas):</label><input type="number" step="0.01" id="n_precio"></div>
+        <div class="grupo-input"><label>Notas (Añade '3€ comisión' aquí):</label><textarea id="n_notas"></textarea></div>
         <div class="botones">
             <button class="btn-reset" onclick="limpiarCampos('nuevo')">Borrar</button>
             <button class="btn-guardar" onclick="enviarNuevo()" id="btn-submit-nuevo">Guardar</button>
@@ -125,6 +139,11 @@
             <button class="btn-filter" onclick="cambiarFiltroTab('pagado', this)">Pagado</button>
         </div>
 
+        <div id="barra-total" class="total-bar">
+            Total a percibir: <span id="total-amount" class="total-amount">0.00€</span>
+            <span id="total-desglose" class="total-desglose"></span>
+        </div>
+
         <div class="search-container">
             <input type="text" id="buscador-listado" placeholder="🔍 Buscar por nombre, precio o ID..." onkeyup="renderizarConFiltros()">
         </div>
@@ -143,7 +162,6 @@
 
         document.addEventListener("DOMContentLoaded", function() { 
             cargarVendedores();
-            // Precargamos los datos para que el selector de pendientes funcione rápido
             fetchDatosGlobales();
         });
 
@@ -165,27 +183,18 @@
             document.getElementById('form-'+modo).classList.add('active');
             
             if(modo === 'listado') {
-                // Si ya tenemos datos, renderizamos, si no, cargamos
-                if(datosListadoGlobal.length > 0) {
-                     cargarListado(); // Usará memoria
-                } else {
-                     cargarListado(true); // Forzará descarga
-                }
+                if(datosListadoGlobal.length > 0) { cargarListado(); } 
+                else { cargarListado(true); }
             }
-            
             if(modo === 'actualizar') {
                 document.getElementById('a_fecha').valueAsDate = new Date();
-                // Al entrar en REVIEW, cargamos el selector inteligente
                 actualizarSelectorPendientes();
             }
         }
 
-        // --- LÓGICA DEL SELECTOR INTELIGENTE ---
         function actualizarSelectorPendientes() {
             var sel = document.getElementById("sel_pendientes");
             sel.innerHTML = "<option value=''>Cargando...</option>";
-
-            // Si no hay datos globales, los pedimos primero
             if(datosListadoGlobal.length === 0) {
                 fetchDatosGlobales().then(() => rellenarSelector());
             } else {
@@ -196,40 +205,29 @@
         function rellenarSelector() {
             var sel = document.getElementById("sel_pendientes");
             sel.innerHTML = "<option value=''>👇 Selecciona el producto...</option>";
-            
-            // Filtramos solo los pendientes de review
             var pendientes = datosListadoGlobal.filter(item => !item.url_rev && !item.pagado);
-            
             if(pendientes.length === 0) {
                 sel.innerHTML = "<option value=''>✅ Todo al día (No hay pendientes)</option>";
                 return;
             }
-
             pendientes.forEach(item => {
                 var opt = document.createElement("option");
-                opt.value = item.pedido; // El valor oculto es el ID
-                // Lo que se ve es el Nombre y el precio
+                opt.value = item.pedido; 
                 opt.innerText = item.nombre + " (" + item.precio + "€)";
                 sel.appendChild(opt);
             });
         }
 
         function seleccionarPendiente() {
-            var idSeleccionado = document.getElementById("sel_pendientes").value;
-            // Rellenamos el input oculto que usa la lógica antigua
-            document.getElementById("a_pedido").value = idSeleccionado;
+            document.getElementById("a_pedido").value = document.getElementById("sel_pendientes").value;
         }
         
         async function pegarDesdePortapapeles() {
             try {
                 const text = await navigator.clipboard.readText();
                 document.getElementById('a_url_review').value = text;
-            } catch (err) {
-                alert("Debes dar permiso para pegar o hacerlo manualmente.");
-            }
+            } catch (err) { alert("Debes dar permiso para pegar o hacerlo manualmente."); }
         }
-
-        // --- RESTO DE FUNCIONES ---
 
         function procesarImagenPro(input) {
             if (input.files && input.files[0]) {
@@ -269,12 +267,7 @@
 
         function cargarListado(forzar = false) {
             var cont = document.getElementById("contenedor-tarjetas");
-            
-            if(!forzar && datosListadoGlobal.length > 0) {
-                 // Si ya tenemos datos, solo renderizamos
-                 renderizarConFiltros();
-                 return;
-            }
+            if(!forzar && datosListadoGlobal.length > 0) { renderizarConFiltros(); return; }
 
             cont.innerHTML = "<p style='text-align:center; color:#666;'>Cargando datos...</p>";
             fetchDatosGlobales().then(() => {
@@ -283,10 +276,7 @@
                 document.querySelector('.btn-filter').classList.add('active'); 
                 filtroTabActual = 'pendiente';
                 renderizarConFiltros();
-            })
-            .catch(error => {
-                cont.innerHTML = "<p style='text-align:center; color:red; margin-top:20px;'>❌ Error de conexión.</p>";
-            });
+            }).catch(error => { cont.innerHTML = "<p style='text-align:center; color:red;'>❌ Error de conexión.</p>"; });
         }
 
         function cambiarFiltroTab(tipo, btn) {
@@ -297,9 +287,27 @@
             renderizarConFiltros();
         }
 
+        // --- FUNCIÓN DE CÁLCULO DE COMISIÓN ---
+        function obtenerComision(nota) {
+            if(!nota) return 0;
+            // Busca patrones: "3€ comision", "3 comi", "+3", "comision 3"
+            // El regex busca: un número (con decimal punto o coma) seguido de algo que parezca 'comis', 'extra' o si hay un '+' delante.
+            
+            // Caso explícito "+3" o "+ 3"
+            var plusMatch = nota.match(/\+\s?(\d+([.,]\d+)?)/);
+            if(plusMatch) return parseFloat(plusMatch[1].replace(',', '.'));
+
+            // Caso texto "3€ comision"
+            var textMatch = nota.match(/(\d+([.,]\d+)?)\s?(€|eur)?\s?(de\s)?(comis|extra)/i);
+            if(textMatch) return parseFloat(textMatch[1].replace(',', '.'));
+            
+            return 0;
+        }
+
         function renderizarConFiltros() {
             var cont = document.getElementById("contenedor-tarjetas");
             var textoBusqueda = document.getElementById('buscador-listado').value.toLowerCase();
+            var barraTotal = document.getElementById("barra-total");
             cont.innerHTML = "";
 
             var itemsFiltrados = datosListadoGlobal.filter(item => {
@@ -316,6 +324,39 @@
                 return cumpleEstado && cumpleBusqueda;
             });
 
+            // --- LÓGICA CALCULADORA INTELIGENTE ---
+            if(itemsFiltrados.length > 0) {
+                var totalBase = 0;
+                var totalComision = 0;
+
+                itemsFiltrados.forEach(item => {
+                    var precio = parseFloat(item.precio) || 0;
+                    var comision = obtenerComision(item.notas);
+                    totalBase += precio;
+                    totalComision += comision;
+                });
+
+                var totalGlobal = totalBase + totalComision;
+                
+                barraTotal.style.display = "block";
+                var label = "Total:";
+                if(filtroTabActual === 'esperando-pago') label = "Te deben (Base + Comis):";
+                if(filtroTabActual === 'pagado') label = "Recuperado:";
+                
+                var desgloseHTML = "";
+                if(totalComision > 0) {
+                    desgloseHTML = `(Base: ${totalBase.toFixed(2)}€ + Comis: ${totalComision.toFixed(2)}€)`;
+                }
+
+                document.getElementById("total-amount").innerText = totalGlobal.toFixed(2) + "€";
+                document.getElementById("total-desglose").innerText = desgloseHTML;
+                barraTotal.firstChild.textContent = label + " "; // Cambiar solo el texto del label
+
+            } else {
+                barraTotal.style.display = "none";
+            }
+            // ---------------------------------------
+
             if(itemsFiltrados.length === 0) {
                 cont.innerHTML = "<p style='text-align:center; color:#999; margin-top:20px;'>No se encontraron resultados.</p>";
                 return;
@@ -327,9 +368,12 @@
                 var notaHtml = item.notas ? `<div style="font-size:12px; color:#555; margin-top:5px; border-top:1px dashed #eee; padding-top:5px;">📝 ${item.notas}</div>` : "";
                 var btnPay = (!item.pagado && item.url_rev) ? `<button class="btn-card btn-pagar" onclick="marcarPagado('${item.pedido}')">💰 Cobrado</button>` : "";
                 
+                // Nombre sin enlace (versión clásica)
+                var nombreDisplay = item.nombre;
+
                 cont.innerHTML += `<div class="card ${estado}">
-                    <div style="font-weight:bold;">${item.nombre} ${badge}</div>
-                    <div style="font-size:13px; margin-top:5px;">Vendedor: ${item.contacto} | Precio: ${item.precio}€</div>
+                    <div style="font-weight:bold;">${nombreDisplay} ${badge}</div>
+                    <div style="font-size:13px; margin-top:5px;">Vendedor: ${item.contacto} | Precio: <b>${item.precio}€</b></div>
                     ${notaHtml}
                     <div style="font-size:11px; text-align:right; color:#888; margin-top:8px;">Alta: ${item.f_alta}</div>
                     <div class="card-actions">
@@ -343,35 +387,23 @@
         function marcarPagado(id) {
             if(!confirm("¿Confirmar pago?")) return;
             var d = new FormData(); d.append("accion", "marcar_pagado"); d.append("pedido", id);
-            fetch(scriptURL, { method: 'POST', body: d }).then(() => {
-                fetchDatosGlobales().then(() => cargarListado());
-            });
+            fetch(scriptURL, { method: 'POST', body: d }).then(() => { fetchDatosGlobales().then(() => cargarListado()); });
         }
 
         function copiarTexto(t, btn) { 
             navigator.clipboard.writeText(t).then(() => {
-                var originalText = btn.innerText;
-                var originalColor = btn.style.backgroundColor;
-                btn.innerText = "✅ Copiado";
-                btn.style.backgroundColor = "#28a745";
-                setTimeout(() => {
-                    btn.innerText = originalText;
-                    btn.style.backgroundColor = originalColor || "";
-                }, 1000);
+                var originalText = btn.innerText; var originalColor = btn.style.backgroundColor;
+                btn.innerText = "✅ Copiado"; btn.style.backgroundColor = "#28a745";
+                setTimeout(() => { btn.innerText = originalText; btn.style.backgroundColor = originalColor || ""; }, 1000);
             });
         }
 
         function enviarNuevo() {
             var msj = document.getElementById("mensaje");
             var btn = document.getElementById("btn-submit-nuevo");
-            
-            btn.disabled = true; 
-            btn.innerText = "Guardando...";
-            msj.innerText = "⏳ Enviando datos...";
-            msj.style.color = "#333";
+            btn.disabled = true; btn.innerText = "Guardando..."; msj.innerText = "⏳ Enviando datos..."; msj.style.color = "#333";
 
             var contacto = document.getElementById("sel_vendedores").value === "OTRO" ? document.getElementById("n_contacto_manual").value : document.getElementById("sel_vendedores").value;
-            
             var d = new FormData(); d.append("accion", "nuevo");
             d.append("nombre", document.getElementById("n_nombre").value);
             d.append("pedido", document.getElementById("n_pedido").value);
@@ -379,72 +411,37 @@
             d.append("precio", document.getElementById("n_precio").value);
             d.append("notas", document.getElementById("n_notas").value);
             
-            fetch(scriptURL, { method: 'POST', body: d })
-            .then(() => { 
-                msj.innerText = "✅ Guardado correctamente";
-                msj.style.color = "green";
-                limpiarCampos('nuevo'); 
-                cargarVendedores();
-                fetchDatosGlobales(); // Actualizamos la lista en segundo plano
-                btn.disabled = false;
-                btn.innerText = "Guardar";
-            })
-            .catch(error => {
-                msj.innerText = "❌ Error al guardar.";
-                msj.style.color = "red";
-                btn.disabled = false;
-                btn.innerText = "Guardar";
-            });
+            fetch(scriptURL, { method: 'POST', body: d }).then(() => { 
+                msj.innerText = "✅ Guardado correctamente"; msj.style.color = "green";
+                limpiarCampos('nuevo'); cargarVendedores(); fetchDatosGlobales();
+                btn.disabled = false; btn.innerText = "Guardar";
+            }).catch(error => { msj.innerText = "❌ Error al guardar."; msj.style.color = "red"; btn.disabled = false; btn.innerText = "Guardar"; });
         }
 
         function enviarActualizacion() {
             var msj = document.getElementById("mensaje");
-            // VALIDACIÓN: ¿Ha seleccionado algo?
-            if(!document.getElementById("a_pedido").value) {
-                alert("Por favor, selecciona un producto del listado.");
-                return;
-            }
-
+            if(!document.getElementById("a_pedido").value) { alert("Por favor, selecciona un producto."); return; }
             msj.innerText = "Actualizando...";
             var d = new FormData(); d.append("accion", "actualizar");
             d.append("pedido", document.getElementById("a_pedido").value);
             d.append("fecha", document.getElementById("a_fecha").value);
             d.append("url_review", document.getElementById("a_url_review").value);
-            
-            fetch(scriptURL, { method: 'POST', body: d }).then(() => { 
-                msj.innerText = "✅ Hecho"; 
-                limpiarCampos('actualizar'); 
-                fetchDatosGlobales(); // Recargamos para que desaparezca del selector
-            });
+            fetch(scriptURL, { method: 'POST', body: d }).then(() => { msj.innerText = "✅ Hecho"; limpiarCampos('actualizar'); fetchDatosGlobales(); });
         }
 
         function limpiarCampos(m) {
             if(m==='nuevo') { ["n_nombre", "n_pedido", "n_precio", "n_notas", "n_contacto_manual"].forEach(id => document.getElementById(id).value = ""); document.getElementById("sel_vendedores").value = ""; verificarVendedorManual(); }
-            else { 
-                document.getElementById("sel_pendientes").value = "";
-                document.getElementById("a_pedido").value = ""; // Limpiamos ID
-                document.getElementById("a_url_review").value = "";
-                // Fecha la dejamos en hoy
-                document.getElementById('a_fecha').valueAsDate = new Date();
-            }
+            else { document.getElementById("sel_pendientes").value = ""; document.getElementById("a_pedido").value = ""; document.getElementById("a_url_review").value = ""; document.getElementById('a_fecha').valueAsDate = new Date(); }
         }
 
         function copiarInfo(btn) {
             var p = document.getElementById("a_pedido").value;
             var u = document.getElementById("a_url_review").value;
-            // Si no hay pedido seleccionado, no copia nada útil
             if(!p) { alert("Selecciona primero un producto"); return; }
-            
             var texto = p + "\n" + u + "\n" + "elisagundinmorales@gmail.com";
-            
             navigator.clipboard.writeText(texto).then(() => {
-                var original = btn.innerText;
-                btn.innerText = "✅ Copiado";
-                btn.style.backgroundColor = "#28a745";
-                setTimeout(() => {
-                    btn.innerText = original;
-                    btn.style.backgroundColor = "#17a2b8"; 
-                }, 1000);
+                var original = btn.innerText; btn.innerText = "✅ Copiado"; btn.style.backgroundColor = "#28a745";
+                setTimeout(() => { btn.innerText = original; btn.style.backgroundColor = "#17a2b8"; }, 1000);
             });
         }
     </script>
