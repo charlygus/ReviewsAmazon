@@ -43,15 +43,24 @@
         .badge { display: inline-block; padding: 3px 6px; font-size: 10px; border-radius: 4px; color: white; margin-left: 5px; }
         .bg-ok { background: #28a745; } .bg-wait { background: #ff9800; } .bg-pay { background: #17a2b8; }
         #mensaje { text-align: center; margin-top: 15px; font-weight: bold; min-height: 20px; color: #333; }
-        .card-actions { margin-top: 10px; display: flex; gap: 5px; }
-        .btn-card { padding: 5px 10px; font-size: 12px; flex: none; width: auto; }
+        .card-actions { margin-top: 10px; display: flex; gap: 5px; flex-wrap: wrap; }
+        .btn-card { padding: 8px 12px; font-size: 13px; flex: none; width: auto; }
         .btn-pagar { background: #28a745; }
-        .btn-copy-id { background: #6c757d; }
+        .btn-copy-id { background: #6c757d; font-family: monospace; letter-spacing: 0.5px; }
 
-        /* NUEVOS ESTILOS PARA EL FILTRO */
-        .filter-bar { display: flex; gap: 5px; margin-bottom: 15px; background: #eee; padding: 5px; border-radius: 8px; }
+        /* ESTILOS FILTRO Y BUSCADOR */
+        .filter-bar { display: flex; gap: 5px; margin-bottom: 10px; background: #eee; padding: 5px; border-radius: 8px; }
         .btn-filter { background: transparent; color: #666; padding: 8px; font-size: 13px; border-radius: 5px; box-shadow: none; flex: 1; }
         .btn-filter.active { background: white; color: #007bff; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        
+        .search-container { margin-bottom: 15px; }
+        #buscador-listado { 
+            border: 2px solid #007bff; 
+            background: #fff; 
+            padding: 10px;
+            font-size: 15px;
+            border-radius: 8px;
+        }
     </style>
 </head>
 <body>
@@ -98,9 +107,13 @@
 
     <div id="form-listado" class="form-section">
         <div class="filter-bar">
-            <button class="btn-filter active" onclick="filtrarListado('pendiente', this)">Pendiente Review</button>
-            <button class="btn-filter" onclick="filtrarListado('esperando-pago', this)">Pendiente Pago</button>
-            <button class="btn-filter" onclick="filtrarListado('pagado', this)">Pagado</button>
+            <button class="btn-filter active" onclick="cambiarFiltroTab('pendiente', this)">Pendiente Review</button>
+            <button class="btn-filter" onclick="cambiarFiltroTab('esperando-pago', this)">Pendiente Pago</button>
+            <button class="btn-filter" onclick="cambiarFiltroTab('pagado', this)">Pagado</button>
+        </div>
+
+        <div class="search-container">
+            <input type="text" id="buscador-listado" placeholder="🔍 Buscar por nombre, precio o ID..." onkeyup="renderizarConFiltros()">
         </div>
 
         <div id="contenedor-tarjetas"><p style="text-align:center">Cargando...</p></div>
@@ -112,8 +125,9 @@
         // --- 🔴 PEGA AQUÍ TU URL DE SCRIPT 🔴 ---
         var scriptURL = "https://script.google.com/macros/s/AKfycbzNCTFTv8IbxbR0BhuQbbOXgA46BfXwQtHzkjf3acuTRT8K7B2tFRGRXWZxKmNQ_Cqo1g/exec"; 
 
-        // Variable global para guardar los datos descargados
+        // VARIABLES GLOBALES
         var datosListadoGlobal = [];
+        var filtroTabActual = 'pendiente'; // Pestaña seleccionada por defecto
 
         document.addEventListener("DOMContentLoaded", function() { cargarVendedores(); });
 
@@ -165,53 +179,78 @@
             cont.innerHTML = "<p style='text-align:center; color:#666;'>Cargando datos...</p>";
             var d = new FormData(); d.append("accion", "leer");
             fetch(scriptURL, { method: 'POST', body: d }).then(r => r.json()).then(lista => {
-                datosListadoGlobal = lista; // Guardamos en global
-                // Por defecto mostramos pendiente de review
-                // Reseteamos botones visualmente
+                datosListadoGlobal = lista; // Guardamos en memoria
+                
+                // Reset visual
+                document.getElementById('buscador-listado').value = ""; // Limpiar buscador
                 document.querySelectorAll('.btn-filter').forEach(b => b.classList.remove('active'));
                 document.querySelector('.btn-filter').classList.add('active'); // Activa el primero
-                renderizarItems('pendiente');
+                filtroTabActual = 'pendiente';
+                
+                renderizarConFiltros();
             });
         }
 
-        function filtrarListado(tipo, btn) {
+        // Función cuando cambias de pestaña de filtro (Review / Pago / Pagado)
+        function cambiarFiltroTab(tipo, btn) {
+            filtroTabActual = tipo;
+            
             // Gestión visual de botones
             document.querySelectorAll('.btn-filter').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
-            renderizarItems(tipo);
+
+            // Limpiamos el buscador para que sea independiente
+            document.getElementById('buscador-listado').value = "";
+
+            renderizarConFiltros();
         }
 
-        function renderizarItems(tipoFiltro) {
+        // Función maestra que aplica los DOS filtros a la vez (Pestaña + Buscador)
+        function renderizarConFiltros() {
             var cont = document.getElementById("contenedor-tarjetas");
+            var textoBusqueda = document.getElementById('buscador-listado').value.toLowerCase();
             cont.innerHTML = "";
 
-            // Filtramos el array global según lo que pidan
             var itemsFiltrados = datosListadoGlobal.filter(item => {
-                if (tipoFiltro === 'pagado') return item.pagado; // Está pagado
-                if (tipoFiltro === 'esperando-pago') return item.url_rev && !item.pagado; // Hay review pero no pagado
-                if (tipoFiltro === 'pendiente') return !item.url_rev && !item.pagado; // Ni review ni pagado
-                return true;
+                // 1. Filtro de ESTADO (Pestaña)
+                var cumpleEstado = false;
+                if (filtroTabActual === 'pagado') cumpleEstado = item.pagado;
+                else if (filtroTabActual === 'esperando-pago') cumpleEstado = item.url_rev && !item.pagado;
+                else if (filtroTabActual === 'pendiente') cumpleEstado = !item.url_rev && !item.pagado;
+
+                // 2. Filtro de BUSCADOR
+                var cumpleBusqueda = true;
+                if(textoBusqueda !== "") {
+                    var textoCompleto = (item.nombre + " " + item.pedido + " " + item.precio).toLowerCase();
+                    cumpleBusqueda = textoCompleto.includes(textoBusqueda);
+                }
+
+                return cumpleEstado && cumpleBusqueda;
             });
 
             if(itemsFiltrados.length === 0) {
-                cont.innerHTML = "<p style='text-align:center; color:#999; margin-top:20px;'>No hay elementos en esta sección.</p>";
+                cont.innerHTML = "<p style='text-align:center; color:#999; margin-top:20px;'>No se encontraron resultados.</p>";
                 return;
             }
 
             itemsFiltrados.forEach(item => {
-                // Lógica de visualización (igual que antes)
                 var estado = item.pagado ? "pagado" : (item.url_rev ? "esperando-pago" : "pendiente");
                 var badge = item.pagado ? "<span class='badge bg-ok'>PAGADO</span>" : (item.url_rev ? "<span class='badge bg-pay'>ESPERANDO</span>" : "<span class='badge bg-wait'>PENDIENTE</span>");
                 var notaHtml = item.notas ? `<div style="font-size:12px; color:#555; margin-top:5px; border-top:1px dashed #eee; padding-top:5px;">📝 ${item.notas}</div>` : "";
                 var btnPay = (!item.pagado && item.url_rev) ? `<button class="btn-card btn-pagar" onclick="marcarPagado('${item.pedido}')">💰 Cobrado</button>` : "";
                 
+                // EL CAMBIO PRINCIPAL ESTÁ AQUÍ ABAJO: El botón ID ahora muestra el ID
                 cont.innerHTML += `<div class="card ${estado}">
                     <div style="font-weight:bold;">${item.nombre} ${badge}</div>
-                    <div style="font-family:monospace; font-size:14px; margin: 5px 0;">${item.pedido}</div>
-                    <div style="font-size:13px;">Vendedor: ${item.contacto} | Precio: ${item.precio}€</div>
+                    
+                    <div style="font-size:13px; margin-top:5px;">Vendedor: ${item.contacto} | Precio: <b>${item.precio}€</b></div>
                     ${notaHtml}
                     <div style="font-size:11px; text-align:right; color:#888; margin-top:8px;">Alta: ${item.f_alta}</div>
-                    <div class="card-actions">${btnPay} <button class="btn-card btn-copy-id" onclick="copiarTexto('${item.pedido}')">📋 ID</button></div>
+                    
+                    <div class="card-actions">
+                        ${btnPay} 
+                        <button class="btn-card btn-copy-id" onclick="copiarTexto('${item.pedido}')">📋 ${item.pedido}</button>
+                    </div>
                 </div>`;
             });
         }
@@ -222,7 +261,7 @@
             fetch(scriptURL, { method: 'POST', body: d }).then(() => cargarListado());
         }
 
-        function copiarTexto(t) { navigator.clipboard.writeText(t).then(() => alert("Copiado")); }
+        function copiarTexto(t) { navigator.clipboard.writeText(t).then(() => alert("ID Copiado: " + t)); }
 
         function enviarNuevo() {
             var msj = document.getElementById("mensaje");
