@@ -8,11 +8,26 @@
     <link rel="icon" type="image/png" href="favicon.png">
     <link rel="apple-touch-icon" href="icono-192.png">
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#ffffff">
+    <meta name="theme-color" content="#f8fbf6">
 
     <style>
+        /* --- 2. COLOR DE FONDO EXACTO --- */
+        :root {
+            --fondo-app: #f8fbf6; 
+        }
+
         * { -webkit-tap-highlight-color: transparent; }
-        body { font-family: sans-serif; background-color: #ffffff; padding: 15px; max-width: 600px; margin: 0 auto; padding-bottom: 50px; user-select: none; }
+        
+        body { 
+            font-family: sans-serif; 
+            background-color: var(--fondo-app);
+            padding: 15px; 
+            max-width: 600px; 
+            margin: 0 auto; 
+            padding-bottom: 50px; 
+            user-select: none; 
+        }
+
         .header { text-align: center; margin-bottom: 20px; }
         .mi-logo { max-width: 180px; height: auto; margin-bottom: 5px; }
 
@@ -26,10 +41,21 @@
 
         .grupo-input { margin-bottom: 15px; }
         label { display: block; font-weight: bold; margin-bottom: 5px; color: #333; font-size: 14px; }
-        input, textarea, select { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 16px; background-color: #f9f9f9; user-select: text !important; }
+        
+        /* Inputs con fondo blanco puro para contrastar sutilmente con el fondo grisáceo */
+        input, textarea, select { 
+            width: 100%; 
+            padding: 12px; 
+            border: 1px solid #ccc; 
+            border-radius: 6px; 
+            box-sizing: border-box; 
+            font-size: 16px; 
+            background-color: #ffffff; 
+            user-select: text !important; 
+        }
         textarea { height: 70px; resize: vertical; }
 
-        .scanner-box { background: #f0f4ff; border: 2px dashed #007bff; border-radius: 10px; padding: 15px; text-align: center; margin-bottom: 20px; }
+        .scanner-box { background: #eef4ff; border: 2px dashed #007bff; border-radius: 10px; padding: 15px; text-align: center; margin-bottom: 20px; }
         .botones { display: flex; gap: 10px; margin-top: 25px; }
         button { flex: 1; padding: 15px; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; color: white; transition: 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         button:disabled { background-color: #ccc !important; cursor: not-allowed; } 
@@ -59,7 +85,6 @@
 
         #sel_pendientes { border: 2px solid #ff9800; background-color: #fff8e1; font-weight: bold; }
 
-        /* BARRA DE TOTALES MEJORADA */
         .total-bar {
             background-color: #2c3e50;
             color: #ecf0f1;
@@ -73,10 +98,20 @@
         }
         .total-amount { font-size: 18px; color: #2ecc71; font-weight: bold; display: block; margin-top: 3px; }
         .total-desglose { font-size: 11px; color: #bdc3c7; margin-top: 5px; display: block; }
+        
+        #loading-indicator {
+            position: fixed; top: 10px; right: 10px; 
+            background: rgba(0,0,0,0.7); color: white; 
+            padding: 5px 10px; border-radius: 20px; 
+            font-size: 10px; display: none; z-index: 999;
+        }
     </style>
 </head>
 <body>
-    <div class="header"><img src="logo.png" alt="Logo" class="mi-logo"></div>
+    <div id="loading-indicator">🔄 Actualizando...</div>
+    <div class="header">
+        <img src="logo.png" alt="Logo" class="mi-logo">
+    </div>
 
     <div class="tabs">
         <div class="tab active" onclick="cambiarModo('nuevo')">1. ALTA</div>
@@ -160,19 +195,40 @@
         var datosListadoGlobal = [];
         var filtroTabActual = 'pendiente'; 
 
+        // INICIO RAPIDO + CACHÉ
         document.addEventListener("DOMContentLoaded", function() { 
             cargarVendedores();
-            fetchDatosGlobales();
+            cargarDesdeCache(); 
+            fetchDatosGlobales(); 
         });
 
+        function cargarDesdeCache() {
+            var localData = localStorage.getItem('mis_reviews_cache');
+            if(localData) {
+                try {
+                    datosListadoGlobal = JSON.parse(localData);
+                    if(document.getElementById('form-listado').classList.contains('active')) {
+                        renderizarConFiltros();
+                    }
+                } catch(e) { console.log("Error caché"); }
+            }
+        }
+
         function fetchDatosGlobales() {
+            document.getElementById('loading-indicator').style.display = 'block';
             var d = new FormData(); d.append("accion", "leer");
             return fetch(scriptURL, { method: 'POST', body: d })
                 .then(r => r.json())
                 .then(lista => {
                     datosListadoGlobal = lista;
+                    localStorage.setItem('mis_reviews_cache', JSON.stringify(lista));
+                    document.getElementById('loading-indicator').style.display = 'none';
+                    if(document.getElementById('form-listado').classList.contains('active')) {
+                        renderizarConFiltros();
+                    }
                     return lista;
-                });
+                })
+                .catch(err => { document.getElementById('loading-indicator').style.display = 'none'; });
         }
 
         function cambiarModo(modo) {
@@ -287,20 +343,12 @@
             renderizarConFiltros();
         }
 
-        // --- FUNCIÓN DE CÁLCULO DE COMISIÓN ---
         function obtenerComision(nota) {
             if(!nota) return 0;
-            // Busca patrones: "3€ comision", "3 comi", "+3", "comision 3"
-            // El regex busca: un número (con decimal punto o coma) seguido de algo que parezca 'comis', 'extra' o si hay un '+' delante.
-            
-            // Caso explícito "+3" o "+ 3"
             var plusMatch = nota.match(/\+\s?(\d+([.,]\d+)?)/);
             if(plusMatch) return parseFloat(plusMatch[1].replace(',', '.'));
-
-            // Caso texto "3€ comision"
             var textMatch = nota.match(/(\d+([.,]\d+)?)\s?(€|eur)?\s?(de\s)?(comis|extra)/i);
             if(textMatch) return parseFloat(textMatch[1].replace(',', '.'));
-            
             return 0;
         }
 
@@ -324,38 +372,28 @@
                 return cumpleEstado && cumpleBusqueda;
             });
 
-            // --- LÓGICA CALCULADORA INTELIGENTE ---
             if(itemsFiltrados.length > 0) {
-                var totalBase = 0;
-                var totalComision = 0;
-
+                var totalBase = 0; var totalComision = 0;
                 itemsFiltrados.forEach(item => {
                     var precio = parseFloat(item.precio) || 0;
                     var comision = obtenerComision(item.notas);
-                    totalBase += precio;
-                    totalComision += comision;
+                    totalBase += precio; totalComision += comision;
                 });
-
                 var totalGlobal = totalBase + totalComision;
-                
                 barraTotal.style.display = "block";
                 var label = "Total:";
                 if(filtroTabActual === 'esperando-pago') label = "Te deben (Base + Comis):";
                 if(filtroTabActual === 'pagado') label = "Recuperado:";
                 
                 var desgloseHTML = "";
-                if(totalComision > 0) {
-                    desgloseHTML = `(Base: ${totalBase.toFixed(2)}€ + Comis: ${totalComision.toFixed(2)}€)`;
-                }
+                if(totalComision > 0) desgloseHTML = `(Base: ${totalBase.toFixed(2)}€ + Comis: ${totalComision.toFixed(2)}€)`;
 
                 document.getElementById("total-amount").innerText = totalGlobal.toFixed(2) + "€";
                 document.getElementById("total-desglose").innerText = desgloseHTML;
-                barraTotal.firstChild.textContent = label + " "; // Cambiar solo el texto del label
-
+                barraTotal.firstChild.textContent = label + " "; 
             } else {
                 barraTotal.style.display = "none";
             }
-            // ---------------------------------------
 
             if(itemsFiltrados.length === 0) {
                 cont.innerHTML = "<p style='text-align:center; color:#999; margin-top:20px;'>No se encontraron resultados.</p>";
@@ -368,11 +406,8 @@
                 var notaHtml = item.notas ? `<div style="font-size:12px; color:#555; margin-top:5px; border-top:1px dashed #eee; padding-top:5px;">📝 ${item.notas}</div>` : "";
                 var btnPay = (!item.pagado && item.url_rev) ? `<button class="btn-card btn-pagar" onclick="marcarPagado('${item.pedido}')">💰 Cobrado</button>` : "";
                 
-                // Nombre sin enlace (versión clásica)
-                var nombreDisplay = item.nombre;
-
                 cont.innerHTML += `<div class="card ${estado}">
-                    <div style="font-weight:bold;">${nombreDisplay} ${badge}</div>
+                    <div style="font-weight:bold;">${item.nombre} ${badge}</div>
                     <div style="font-size:13px; margin-top:5px;">Vendedor: ${item.contacto} | Precio: <b>${item.precio}€</b></div>
                     ${notaHtml}
                     <div style="font-size:11px; text-align:right; color:#888; margin-top:8px;">Alta: ${item.f_alta}</div>
