@@ -32,6 +32,8 @@
         .scanner-box { background: #f0f4ff; border: 2px dashed #007bff; border-radius: 10px; padding: 15px; text-align: center; margin-bottom: 20px; }
         .botones { display: flex; gap: 10px; margin-top: 25px; }
         button { flex: 1; padding: 15px; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; color: white; transition: 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        button:disabled { background-color: #ccc !important; cursor: not-allowed; } /* Estilo para botón bloqueado */
+        
         .btn-guardar { background-color: #28a745; }
         .btn-copiar { background-color: #17a2b8; }
         .btn-reset { background-color: #6c757d; flex: 0.4; }
@@ -90,7 +92,7 @@
         <div class="grupo-input"><label>Notas Iniciales:</label><textarea id="n_notas"></textarea></div>
         <div class="botones">
             <button class="btn-reset" onclick="limpiarCampos('nuevo')">Borrar</button>
-            <button class="btn-guardar" onclick="enviarNuevo()">Guardar</button>
+            <button class="btn-guardar" onclick="enviarNuevo()" id="btn-submit-nuevo">Guardar</button>
         </div>
     </div>
 
@@ -127,7 +129,7 @@
 
         // VARIABLES GLOBALES
         var datosListadoGlobal = [];
-        var filtroTabActual = 'pendiente'; // Pestaña seleccionada por defecto
+        var filtroTabActual = 'pendiente'; 
 
         document.addEventListener("DOMContentLoaded", function() { cargarVendedores(); });
 
@@ -156,6 +158,10 @@
                         if(res.pedido) { document.getElementById("n_pedido").value = res.pedido; }
                         if(res.precio) { document.getElementById("n_precio").value = res.precio; }
                         if(res.nombre) { document.getElementById("n_nombre").value = res.nombre; }
+                    }).catch(err => {
+                        estado.style.display = "block";
+                        estado.innerText = "❌ Error en el escáner.";
+                        estado.style.color = "red";
                     });
                 };
                 reader.readAsDataURL(file);
@@ -169,7 +175,7 @@
                 sel.innerHTML = "<option value=''>Selecciona Vendedor</option>";
                 lista.forEach(v => { var opt = document.createElement("option"); opt.value = v; opt.innerText = v; sel.appendChild(opt); });
                 var optM = document.createElement("option"); optM.value = "OTRO"; optM.innerText = "+ NUEVO"; sel.appendChild(optM);
-            });
+            }).catch(e => console.log("Error cargando vendedores"));
         }
 
         function verificarVendedorManual() { document.getElementById("n_contacto_manual").style.display = (document.getElementById("sel_vendedores").value === "OTRO") ? "block" : "none"; }
@@ -178,41 +184,40 @@
             var cont = document.getElementById("contenedor-tarjetas");
             cont.innerHTML = "<p style='text-align:center; color:#666;'>Cargando datos...</p>";
             var d = new FormData(); d.append("accion", "leer");
-            fetch(scriptURL, { method: 'POST', body: d }).then(r => r.json()).then(lista => {
-                datosListadoGlobal = lista; // Guardamos en memoria
+            
+            fetch(scriptURL, { method: 'POST', body: d })
+            .then(r => r.json())
+            .then(lista => {
+                datosListadoGlobal = lista; // Sin invertir orden
                 
                 // Reset visual
-                document.getElementById('buscador-listado').value = ""; // Limpiar buscador
+                document.getElementById('buscador-listado').value = ""; 
                 document.querySelectorAll('.btn-filter').forEach(b => b.classList.remove('active'));
-                document.querySelector('.btn-filter').classList.add('active'); // Activa el primero
+                document.querySelector('.btn-filter').classList.add('active'); 
                 filtroTabActual = 'pendiente';
                 
                 renderizarConFiltros();
+            })
+            .catch(error => {
+                cont.innerHTML = "<p style='text-align:center; color:red; margin-top:20px;'>❌ Error de conexión. Intenta recargar la pestaña.</p>";
             });
         }
 
-        // Función cuando cambias de pestaña de filtro (Review / Pago / Pagado)
         function cambiarFiltroTab(tipo, btn) {
             filtroTabActual = tipo;
-            
-            // Gestión visual de botones
             document.querySelectorAll('.btn-filter').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
-
-            // Limpiamos el buscador para que sea independiente
             document.getElementById('buscador-listado').value = "";
-
             renderizarConFiltros();
         }
 
-        // Función maestra que aplica los DOS filtros a la vez (Pestaña + Buscador)
         function renderizarConFiltros() {
             var cont = document.getElementById("contenedor-tarjetas");
             var textoBusqueda = document.getElementById('buscador-listado').value.toLowerCase();
             cont.innerHTML = "";
 
             var itemsFiltrados = datosListadoGlobal.filter(item => {
-                // 1. Filtro de ESTADO (Pestaña)
+                // 1. Filtro de ESTADO
                 var cumpleEstado = false;
                 if (filtroTabActual === 'pagado') cumpleEstado = item.pagado;
                 else if (filtroTabActual === 'esperando-pago') cumpleEstado = item.url_rev && !item.pagado;
@@ -224,7 +229,6 @@
                     var textoCompleto = (item.nombre + " " + item.pedido + " " + item.precio).toLowerCase();
                     cumpleBusqueda = textoCompleto.includes(textoBusqueda);
                 }
-
                 return cumpleEstado && cumpleBusqueda;
             });
 
@@ -239,14 +243,11 @@
                 var notaHtml = item.notas ? `<div style="font-size:12px; color:#555; margin-top:5px; border-top:1px dashed #eee; padding-top:5px;">📝 ${item.notas}</div>` : "";
                 var btnPay = (!item.pagado && item.url_rev) ? `<button class="btn-card btn-pagar" onclick="marcarPagado('${item.pedido}')">💰 Cobrado</button>` : "";
                 
-                // EL CAMBIO PRINCIPAL ESTÁ AQUÍ ABAJO: El botón ID ahora muestra el ID
                 cont.innerHTML += `<div class="card ${estado}">
                     <div style="font-weight:bold;">${item.nombre} ${badge}</div>
-                    
-                    <div style="font-size:13px; margin-top:5px;">Vendedor: ${item.contacto} | Precio: <b>${item.precio}€</b></div>
+                    <div style="font-size:13px; margin-top:5px;">Vendedor: ${item.contacto} | Precio: ${item.precio}€</div>
                     ${notaHtml}
                     <div style="font-size:11px; text-align:right; color:#888; margin-top:8px;">Alta: ${item.f_alta}</div>
-                    
                     <div class="card-actions">
                         ${btnPay} 
                         <button class="btn-card btn-copy-id" onclick="copiarTexto('${item.pedido}')">📋 ${item.pedido}</button>
@@ -265,15 +266,42 @@
 
         function enviarNuevo() {
             var msj = document.getElementById("mensaje");
+            var btn = document.getElementById("btn-submit-nuevo"); // Capturamos el botón
+            
+            // 1. BLOQUEO ANTI-DUPLICADOS
+            btn.disabled = true; 
+            btn.innerText = "Guardando...";
+            msj.innerText = "⏳ Enviando datos...";
+            msj.style.color = "#333";
+
             var contacto = document.getElementById("sel_vendedores").value === "OTRO" ? document.getElementById("n_contacto_manual").value : document.getElementById("sel_vendedores").value;
-            msj.innerText = "Guardando...";
+            
             var d = new FormData(); d.append("accion", "nuevo");
             d.append("nombre", document.getElementById("n_nombre").value);
             d.append("pedido", document.getElementById("n_pedido").value);
             d.append("contacto", contacto);
             d.append("precio", document.getElementById("n_precio").value);
             d.append("notas", document.getElementById("n_notas").value);
-            fetch(scriptURL, { method: 'POST', body: d }).then(() => { msj.innerText = "✅ Hecho"; limpiarCampos('nuevo'); cargarVendedores(); });
+            
+            fetch(scriptURL, { method: 'POST', body: d })
+            .then(() => { 
+                msj.innerText = "✅ Guardado correctamente";
+                msj.style.color = "green";
+                limpiarCampos('nuevo'); 
+                cargarVendedores();
+                // Desbloqueamos botón
+                btn.disabled = false;
+                btn.innerText = "Guardar";
+            })
+            .catch(error => {
+                // 2. GESTIÓN DE ERROR
+                msj.innerText = "❌ Error al guardar. Revisa tu conexión.";
+                msj.style.color = "red";
+                // Desbloqueamos botón para reintentar
+                btn.disabled = false;
+                btn.innerText = "Guardar";
+                alert("Hubo un error al guardar. No se ha registrado.");
+            });
         }
 
         function enviarActualizacion() {
