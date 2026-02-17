@@ -1,199 +1,261 @@
-<!DOCTYPE html>
+¡<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Listado de Facturas</title>
+    <title>Gestión Reviews</title>
+    
+    <link rel="icon" type="image/png" href="favicon.png">
+    <link rel="apple-touch-icon" href="icono-192.png">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#ffffff">
+
     <style>
-        /* --- ESTILOS CSS --- */
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: #f5f5f7;
-            margin: 0;
-            padding: 20px;
-        }
+        * { -webkit-tap-highlight-color: transparent; }
+        body { font-family: sans-serif; background-color: #ffffff; padding: 15px; max-width: 600px; margin: 0 auto; padding-bottom: 50px; user-select: none; }
+        .header { text-align: center; margin-bottom: 20px; }
+        .mi-logo { max-width: 180px; height: auto; margin-bottom: 5px; }
 
-        /* Contenedor de los filtros (Pestañas) */
-        .filtro-container {
-            display: flex;
-            background-color: #ffffff;
-            padding: 5px;
-            border-radius: 10px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-            margin-bottom: 20px;
-            overflow-x: auto; /* Para móviles si no cabe */
-        }
+        .tabs { display: flex; margin-bottom: 20px; border-bottom: 2px solid #ddd; }
+        .tab { flex: 1; padding: 12px 5px; text-align: center; cursor: pointer; font-weight: bold; color: #666; background: #f8f9fa; border-radius: 8px 8px 0 0; border: 1px solid #ddd; border-bottom: none; font-size: 14px; margin-right: 2px; }
+        .tab.active { background: #007bff; color: white; border-color: #007bff; }
 
-        .btn-filtro {
-            flex: 1;
-            padding: 12px;
-            border: none;
-            background: transparent;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 500;
-            color: #888;
-            border-radius: 8px;
-            transition: all 0.2s ease;
-            white-space: nowrap;
-        }
+        .form-section { display: none; padding: 10px 5px; }
+        .form-section.active { display: block; animation: fadeIn 0.3s; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-        .btn-filtro:hover {
-            background-color: #f0f0f0;
-        }
+        .grupo-input { margin-bottom: 15px; }
+        label { display: block; font-weight: bold; margin-bottom: 5px; color: #333; font-size: 14px; }
+        input, textarea, select { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 16px; background-color: #f9f9f9; user-select: text !important; }
+        textarea { height: 70px; resize: vertical; }
 
-        /* Estado Activo */
-        .btn-filtro.active {
-            background-color: #007bff; /* Azul principal */
-            color: white;
-            font-weight: 600;
-            box-shadow: 0 2px 4px rgba(0, 123, 255, 0.3);
-        }
+        .scanner-box { background: #f0f4ff; border: 2px dashed #007bff; border-radius: 10px; padding: 15px; text-align: center; margin-bottom: 20px; }
+        .botones { display: flex; gap: 10px; margin-top: 25px; }
+        button { flex: 1; padding: 15px; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; color: white; transition: 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .btn-guardar { background-color: #28a745; }
+        .btn-copiar { background-color: #17a2b8; }
+        .btn-reset { background-color: #6c757d; flex: 0.4; }
+        
+        .card { background: white; border-radius: 10px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.08); border-left: 6px solid #ccc; position: relative; }
+        .card.pendiente { border-left-color: #ff9800; } 
+        .card.esperando-pago { border-left-color: #17a2b8; } 
+        .card.pagado { border-left-color: #28a745; } 
+        .badge { display: inline-block; padding: 3px 6px; font-size: 10px; border-radius: 4px; color: white; margin-left: 5px; }
+        .bg-ok { background: #28a745; } .bg-wait { background: #ff9800; } .bg-pay { background: #17a2b8; }
+        #mensaje { text-align: center; margin-top: 15px; font-weight: bold; min-height: 20px; color: #333; }
+        .card-actions { margin-top: 10px; display: flex; gap: 5px; }
+        .btn-card { padding: 5px 10px; font-size: 12px; flex: none; width: auto; }
+        .btn-pagar { background: #28a745; }
+        .btn-copy-id { background: #6c757d; }
 
-        /* Lista de elementos */
-        .lista-container {
-            max-width: 800px;
-            margin: 0 auto;
-        }
-
-        .item-card {
-            background: white;
-            border-radius: 10px;
-            padding: 15px 20px;
-            margin-bottom: 10px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-left: 5px solid transparent;
-        }
-
-        /* Colores del borde según estado */
-        .borde-review { border-left-color: #ffa500; } /* Naranja */
-        .borde-pago { border-left-color: #dc3545; }   /* Rojo */
-        .borde-pagado { border-left-color: #28a745; } /* Verde */
-
-        .item-info h3 {
-            margin: 0 0 5px 0;
-            font-size: 16px;
-            color: #333;
-        }
-
-        .item-info p {
-            margin: 0;
-            font-size: 13px;
-            color: #666;
-        }
-
-        .item-estado {
-            font-size: 12px;
-            padding: 4px 8px;
-            border-radius: 4px;
-            background-color: #eee;
-            color: #555;
-            text-transform: uppercase;
-            font-weight: bold;
-        }
+        /* NUEVOS ESTILOS PARA EL FILTRO */
+        .filter-bar { display: flex; gap: 5px; margin-bottom: 15px; background: #eee; padding: 5px; border-radius: 8px; }
+        .btn-filter { background: transparent; color: #666; padding: 8px; font-size: 13px; border-radius: 5px; box-shadow: none; flex: 1; }
+        .btn-filter.active { background: white; color: #007bff; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
     </style>
 </head>
 <body>
+    <div class="header"><img src="logo.png" alt="Logo" class="mi-logo"></div>
 
-    <div class="lista-container">
-        
-        <div class="filtro-container">
-            <button class="btn-filtro active" onclick="aplicarFiltro('pendiente de review')">Pendiente Review</button>
-            <button class="btn-filtro" onclick="aplicarFiltro('pendiente de pago')">Pendiente Pago</button>
-            <button class="btn-filtro" onclick="aplicarFiltro('pagado')">Pagado</button>
-        </div>
-
-        <div id="contenedor-items">
-            </div>
-
+    <div class="tabs">
+        <div class="tab active" onclick="cambiarModo('nuevo')">1. ALTA</div>
+        <div class="tab" onclick="cambiarModo('actualizar')">2. REVIEW</div>
+        <div class="tab" onclick="cambiarModo('listado')">3. LISTADO</div>
     </div>
 
+    <div id="form-nuevo" class="form-section active">
+        <div class="scanner-box">
+            <p style="font-weight: bold; color: #0056b3;">📷 Escáner Pro (Google AI)</p>
+            <input type="file" id="input-imagen" accept="image/*" style="display: none;" onchange="procesarImagenPro(this)">
+            <button onclick="document.getElementById('input-imagen').click()" style="background: #007bff; padding: 8px 15px; width: auto; font-size: 14px;">Subir Captura</button>
+            <p id="estado-ocr" style="font-size: 12px; color: #666; margin-top: 10px; display: none;">⏳ Analizando...</p>
+        </div>
+        <div class="grupo-input"><label>Producto:</label><input type="text" id="n_nombre"></div>
+        <div class="grupo-input"><label>Nº Pedido:</label><input type="text" id="n_pedido" placeholder="Ej: 123-456789-000"></div>
+        <div class="grupo-input">
+            <label>Contacto Vendedor:</label>
+            <select id="sel_vendedores" onchange="verificarVendedorManual()"><option value="">Cargando lista...</option></select>
+            <input type="text" id="n_contacto_manual" placeholder="Nombre del nuevo vendedor..." style="display:none; margin-top:10px; border-color: #ff9800;">
+        </div>
+        <div class="grupo-input"><label>Precio:</label><input type="number" step="0.01" id="n_precio"></div>
+        <div class="grupo-input"><label>Notas Iniciales:</label><textarea id="n_notas"></textarea></div>
+        <div class="botones">
+            <button class="btn-reset" onclick="limpiarCampos('nuevo')">Borrar</button>
+            <button class="btn-guardar" onclick="enviarNuevo()">Guardar</button>
+        </div>
+    </div>
+
+    <div id="form-actualizar" class="form-section">
+        <div class="grupo-input"><label>Nº Pedido (Buscador):</label><input type="text" id="a_pedido"></div>
+        <div class="grupo-input"><label>Fecha Review:</label><input type="date" id="a_fecha"></div>
+        <div class="grupo-input"><label>URL Review:</label><input type="url" id="a_url_review"></div>
+        <div class="botones">
+            <button class="btn-reset" onclick="limpiarCampos('actualizar')">Borrar</button>
+            <button class="btn-guardar" onclick="enviarActualizacion()">Actualizar</button>
+            <button class="btn-copiar" onclick="copiarInfo()">Copiar Info</button>
+        </div>
+    </div>
+
+    <div id="form-listado" class="form-section">
+        <div class="filter-bar">
+            <button class="btn-filter active" onclick="filtrarListado('pendiente', this)">Pendiente Review</button>
+            <button class="btn-filter" onclick="filtrarListado('esperando-pago', this)">Pendiente Pago</button>
+            <button class="btn-filter" onclick="filtrarListado('pagado', this)">Pagado</button>
+        </div>
+
+        <div id="contenedor-tarjetas"><p style="text-align:center">Cargando...</p></div>
+    </div>
+
+    <p id="mensaje"></p>
+
     <script>
-        // --- 3. LÓGICA JAVASCRIPT ---
+        // --- 🔴 PEGA AQUÍ TU URL DE SCRIPT 🔴 ---
+        var scriptURL = "https://script.google.com/macros/s/AKfycbzNCTFTv8IbxbR0BhuQbbOXgA46BfXwQtHzkjf3acuTRT8K7B2tFRGRXWZxKmNQ_Cqo1g/exec"; 
 
-        // DATOS DE EJEMPLO (Simulando lo que te llega de Google Apps Script)
-        // Sustituye este array por tu respuesta del fetch() real cuando lo integres.
-        const datosBackend = [
-            { id: 1, cliente: "Cliente A", concepto: "Diseño Web", importe: "1200€", estado: "pendiente de review" },
-            { id: 2, cliente: "Cliente B", concepto: "Consultoría SEO", importe: "300€", estado: "pagado" },
-            { id: 3, cliente: "Cliente C", concepto: "Mantenimiento", importe: "150€", estado: "pendiente de pago" },
-            { id: 4, cliente: "Cliente D", concepto: "Logo", importe: "500€", estado: "pendiente de review" },
-            { id: 5, cliente: "Cliente E", concepto: "Campaña Ads", importe: "800€", estado: "pendiente de pago" },
-            { id: 6, cliente: "Cliente F", concepto: "Hosting Anual", importe: "120€", estado: "pagado" },
-            { id: 7, cliente: "Cliente G", concepto: "Revisión Textos", importe: "60€", estado: "pendiente de review" }
-        ];
+        // Variable global para guardar los datos descargados
+        var datosListadoGlobal = [];
 
-        // Estado inicial
-        let estadoActual = 'pendiente de review';
+        document.addEventListener("DOMContentLoaded", function() { cargarVendedores(); });
 
-        // Función que se ejecuta al cargar la página
-        document.addEventListener('DOMContentLoaded', () => {
-            renderizarLista();
-        });
-
-        // Función para cambiar el filtro
-        function aplicarFiltro(nuevoEstado) {
-            estadoActual = nuevoEstado;
-
-            // Actualizar botones (visual)
-            const botones = document.querySelectorAll('.btn-filtro');
-            botones.forEach(btn => {
-                if(btn.innerText.toLowerCase().includes(nuevoEstado.replace('pendiente de ', ''))) { 
-                    // Truco simple para coincidir texto del botón con el estado
-                    btn.classList.add('active');
-                } else {
-                    // Si el texto es exacto:
-                    if(btn.getAttribute('onclick').includes(nuevoEstado)) {
-                        btn.classList.add('active');
-                    } else {
-                        btn.classList.remove('active');
-                    }
-                }
-            });
-
-            // Re-renderizar
-            renderizarLista();
+        function cambiarModo(modo) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.form-section').forEach(f => f.classList.remove('active'));
+            document.getElementById('mensaje').innerText = "";
+            event.currentTarget.classList.add('active');
+            document.getElementById('form-'+modo).classList.add('active');
+            if(modo === 'listado') cargarListado();
         }
 
-        // Función para pintar el HTML
-        function renderizarLista() {
-            const contenedor = document.getElementById('contenedor-items');
-            contenedor.innerHTML = ''; // Limpiar
+        function procesarImagenPro(input) {
+            if (input.files && input.files[0]) {
+                var file = input.files[0];
+                var estado = document.getElementById("estado-ocr");
+                estado.style.display = "block"; estado.innerText = "⏳ Enviando a Google AI...";
+                var reader = new FileReader();
+                reader.onload = function(e) {
+                    var datos = new FormData();
+                    datos.append("accion", "ocr_drive");
+                    datos.append("mimetype", file.type);
+                    datos.append("imagen", e.target.result);
+                    fetch(scriptURL, { method: 'POST', body: datos }).then(r => r.json()).then(res => {
+                        estado.style.display = "none";
+                        if(res.pedido) { document.getElementById("n_pedido").value = res.pedido; }
+                        if(res.precio) { document.getElementById("n_precio").value = res.precio; }
+                        if(res.nombre) { document.getElementById("n_nombre").value = res.nombre; }
+                    });
+                };
+                reader.readAsDataURL(file);
+            }
+        }
 
-            // Filtrar array
-            const filtrados = datosBackend.filter(item => item.estado === estadoActual);
+        function cargarVendedores() {
+            var sel = document.getElementById("sel_vendedores");
+            var d = new FormData(); d.append("accion", "leer_vendedores");
+            fetch(scriptURL, { method: 'POST', body: d }).then(r => r.json()).then(lista => {
+                sel.innerHTML = "<option value=''>Selecciona Vendedor</option>";
+                lista.forEach(v => { var opt = document.createElement("option"); opt.value = v; opt.innerText = v; sel.appendChild(opt); });
+                var optM = document.createElement("option"); optM.value = "OTRO"; optM.innerText = "+ NUEVO"; sel.appendChild(optM);
+            });
+        }
 
-            // Si está vacío
-            if (filtrados.length === 0) {
-                contenedor.innerHTML = '<p style="text-align:center; color:#999; margin-top:30px;">No hay facturas en este estado.</p>';
+        function verificarVendedorManual() { document.getElementById("n_contacto_manual").style.display = (document.getElementById("sel_vendedores").value === "OTRO") ? "block" : "none"; }
+
+        function cargarListado() {
+            var cont = document.getElementById("contenedor-tarjetas");
+            cont.innerHTML = "<p style='text-align:center; color:#666;'>Cargando datos...</p>";
+            var d = new FormData(); d.append("accion", "leer");
+            fetch(scriptURL, { method: 'POST', body: d }).then(r => r.json()).then(lista => {
+                datosListadoGlobal = lista; // Guardamos en global
+                // Por defecto mostramos pendiente de review
+                // Reseteamos botones visualmente
+                document.querySelectorAll('.btn-filter').forEach(b => b.classList.remove('active'));
+                document.querySelector('.btn-filter').classList.add('active'); // Activa el primero
+                renderizarItems('pendiente');
+            });
+        }
+
+        function filtrarListado(tipo, btn) {
+            // Gestión visual de botones
+            document.querySelectorAll('.btn-filter').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            renderizarItems(tipo);
+        }
+
+        function renderizarItems(tipoFiltro) {
+            var cont = document.getElementById("contenedor-tarjetas");
+            cont.innerHTML = "";
+
+            // Filtramos el array global según lo que pidan
+            var itemsFiltrados = datosListadoGlobal.filter(item => {
+                if (tipoFiltro === 'pagado') return item.pagado; // Está pagado
+                if (tipoFiltro === 'esperando-pago') return item.url_rev && !item.pagado; // Hay review pero no pagado
+                if (tipoFiltro === 'pendiente') return !item.url_rev && !item.pagado; // Ni review ni pagado
+                return true;
+            });
+
+            if(itemsFiltrados.length === 0) {
+                cont.innerHTML = "<p style='text-align:center; color:#999; margin-top:20px;'>No hay elementos en esta sección.</p>";
                 return;
             }
 
-            // Crear HTML por cada item
-            filtrados.forEach(item => {
-                // Determinar clase de color para el borde
-                let claseBorde = '';
-                if(item.estado === 'pendiente de review') claseBorde = 'borde-review';
-                else if(item.estado === 'pendiente de pago') claseBorde = 'borde-pago';
-                else if(item.estado === 'pagado') claseBorde = 'borde-pagado';
-
-                const htmlItem = `
-                    <div class="item-card ${claseBorde}">
-                        <div class="item-info">
-                            <h3>${item.cliente}</h3>
-                            <p>${item.concepto}</p>
-                        </div>
-                        <div style="text-align:right;">
-                            <div style="font-weight:bold; font-size:16px;">${item.importe}</div>
-                            <span class="item-estado">${item.estado}</span>
-                        </div>
-                    </div>
-                `;
-                contenedor.innerHTML += htmlItem;
+            itemsFiltrados.forEach(item => {
+                // Lógica de visualización (igual que antes)
+                var estado = item.pagado ? "pagado" : (item.url_rev ? "esperando-pago" : "pendiente");
+                var badge = item.pagado ? "<span class='badge bg-ok'>PAGADO</span>" : (item.url_rev ? "<span class='badge bg-pay'>ESPERANDO</span>" : "<span class='badge bg-wait'>PENDIENTE</span>");
+                var notaHtml = item.notas ? `<div style="font-size:12px; color:#555; margin-top:5px; border-top:1px dashed #eee; padding-top:5px;">📝 ${item.notas}</div>` : "";
+                var btnPay = (!item.pagado && item.url_rev) ? `<button class="btn-card btn-pagar" onclick="marcarPagado('${item.pedido}')">💰 Cobrado</button>` : "";
+                
+                cont.innerHTML += `<div class="card ${estado}">
+                    <div style="font-weight:bold;">${item.nombre} ${badge}</div>
+                    <div style="font-family:monospace; font-size:14px; margin: 5px 0;">${item.pedido}</div>
+                    <div style="font-size:13px;">Vendedor: ${item.contacto} | Precio: ${item.precio}€</div>
+                    ${notaHtml}
+                    <div style="font-size:11px; text-align:right; color:#888; margin-top:8px;">Alta: ${item.f_alta}</div>
+                    <div class="card-actions">${btnPay} <button class="btn-card btn-copy-id" onclick="copiarTexto('${item.pedido}')">📋 ID</button></div>
+                </div>`;
             });
+        }
+
+        function marcarPagado(id) {
+            if(!confirm("¿Confirmar pago?")) return;
+            var d = new FormData(); d.append("accion", "marcar_pagado"); d.append("pedido", id);
+            fetch(scriptURL, { method: 'POST', body: d }).then(() => cargarListado());
+        }
+
+        function copiarTexto(t) { navigator.clipboard.writeText(t).then(() => alert("Copiado")); }
+
+        function enviarNuevo() {
+            var msj = document.getElementById("mensaje");
+            var contacto = document.getElementById("sel_vendedores").value === "OTRO" ? document.getElementById("n_contacto_manual").value : document.getElementById("sel_vendedores").value;
+            msj.innerText = "Guardando...";
+            var d = new FormData(); d.append("accion", "nuevo");
+            d.append("nombre", document.getElementById("n_nombre").value);
+            d.append("pedido", document.getElementById("n_pedido").value);
+            d.append("contacto", contacto);
+            d.append("precio", document.getElementById("n_precio").value);
+            d.append("notas", document.getElementById("n_notas").value);
+            fetch(scriptURL, { method: 'POST', body: d }).then(() => { msj.innerText = "✅ Hecho"; limpiarCampos('nuevo'); cargarVendedores(); });
+        }
+
+        function enviarActualizacion() {
+            var msj = document.getElementById("mensaje");
+            msj.innerText = "Actualizando...";
+            var d = new FormData(); d.append("accion", "actualizar");
+            d.append("pedido", document.getElementById("a_pedido").value);
+            d.append("fecha", document.getElementById("a_fecha").value);
+            d.append("url_review", document.getElementById("a_url_review").value);
+            fetch(scriptURL, { method: 'POST', body: d }).then(() => { msj.innerText = "✅ Hecho"; limpiarCampos('actualizar'); });
+        }
+
+        function limpiarCampos(m) {
+            if(m==='nuevo') { ["n_nombre", "n_pedido", "n_precio", "n_notas", "n_contacto_manual"].forEach(id => document.getElementById(id).value = ""); document.getElementById("sel_vendedores").value = ""; verificarVendedorManual(); }
+            else { ["a_pedido", "a_fecha", "a_url_review"].forEach(id => document.getElementById(id).value = ""); }
+        }
+
+        function copiarInfo() {
+            var p = document.getElementById("a_pedido").value;
+            var u = document.getElementById("a_url_review").value;
+            navigator.clipboard.writeText(p + "\n" + u + "\n" + "elisagundinmorales@gmail.com").then(() => alert("Copiado"));
         }
     </script>
 </body>
