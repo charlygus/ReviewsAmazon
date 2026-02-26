@@ -440,7 +440,7 @@
                     <div style="font-weight:bold;">${item.nombre} ${badge}</div>
                     <div style="font-size:13px; margin-top:5px;">Vendedor: ${item.contacto} | Precio: <b>${item.precio}€</b></div>
                     ${notaHtml}
-                    <div style="font-size:11px; text-align:right; color:#888; margin-top:8px;">Alta: ${item.f_alta}</div>
+                    <div style="font-size:11px; text-align:right; color:#888; margin-top:8px;">Alta: ${item.f_alta || '-'} | Review: ${item.fecha || item.f_review || '-'}</div>
                     <div class="card-actions">
                         ${btnPay} 
                         <button class="btn-card btn-copy-id" onclick="copiarTexto('${item.pedido}', this)">📋 ${item.pedido}</button>
