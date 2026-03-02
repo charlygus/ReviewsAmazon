@@ -71,7 +71,6 @@
         .btn-pagar { background: #28a745; }
         .btn-copy-id { background: #6c757d; font-family: monospace; letter-spacing: 0.5px; transition: all 0.2s; }
         
-        /* Botones nuevos en la tarjeta */
         .btn-editar-card { background: #ffc107; color: #000; }
         .btn-borrar-card { background: #dc3545; }
 
@@ -107,10 +106,12 @@
             font-size: 10px; display: none; z-index: 999;
         }
 
-        /* Ventana Flotante Modal para Edición */
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: center; }
         .modal-content { background: white; padding: 20px; border-radius: 12px; width: 90%; max-width: 400px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
         .modal-title { margin-top: 0; color: #333; font-size: 18px; border-bottom: 2px solid #007bff; padding-bottom: 10px; margin-bottom: 15px; }
+
+        /* Estilo para el input de solo lectura */
+        input[readonly] { background-color: #e9ecef; color: #155724; font-weight: bold; border-color: #c3e6cb; }
     </style>
 </head>
 <body>
@@ -139,8 +140,24 @@
             <select id="sel_vendedores" onchange="verificarVendedorManual()"><option value="">Cargando lista...</option></select>
             <input type="text" id="n_contacto_manual" placeholder="Nombre del nuevo vendedor..." style="display:none; margin-top:10px; border-color: #ff9800;">
         </div>
-        <div class="grupo-input"><label>Precio Base (Lo que pagas):</label><input type="number" step="0.01" id="n_precio"></div>
-        <div class="grupo-input"><label>Notas (Añade '3€ comisión' aquí):</label><textarea id="n_notas"></textarea></div>
+        
+        <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+            <div style="flex: 1;">
+                <label>Precio Base:</label>
+                <input type="number" step="0.01" id="n_precio" oninput="calcularTotalAlta()">
+            </div>
+            <div style="flex: 1;">
+                <label>Comisión (-/+) :</label>
+                <input type="number" step="0.01" id="n_comision" placeholder="Ej: -15" oninput="calcularTotalAlta()">
+            </div>
+        </div>
+        <div class="grupo-input">
+            <label>Total Automático:</label>
+            <input type="text" id="n_total" readonly placeholder="0.00€">
+        </div>
+
+        <div class="grupo-input"><label>Notas extra (opcional):</label><textarea id="n_notas" placeholder="Añade aquí cualquier otro detalle..."></textarea></div>
+        
         <div class="botones">
             <button class="btn-reset" onclick="limpiarCampos('nuevo')">Borrar</button>
             <button class="btn-guardar" onclick="enviarNuevo()" id="btn-submit-nuevo">Guardar</button>
@@ -197,7 +214,7 @@
             <input type="hidden" id="e_pedido">
             <div class="grupo-input"><label>Producto:</label><input type="text" id="e_nombre"></div>
             <div class="grupo-input"><label>Precio Base:</label><input type="number" step="0.01" id="e_precio"></div>
-            <div class="grupo-input"><label>Notas:</label><textarea id="e_notas"></textarea></div>
+            <div class="grupo-input"><label>Notas (Incluye comisiones aquí):</label><textarea id="e_notas"></textarea></div>
             <div class="botones">
                 <button class="btn-reset" onclick="cerrarEdicion()">Cancelar</button>
                 <button class="btn-guardar" onclick="guardarEdicion()">Actualizar</button>
@@ -213,7 +230,7 @@
 
         var datosListadoGlobal = [];
         var filtroTabActual = 'pendiente'; 
-        var cargarTodosPagados = false; // Estado para ver si mostramos los que tienen +7 días
+        var cargarTodosPagados = false; 
 
         document.addEventListener("DOMContentLoaded", function() { 
             sincronizarColorLogo();
@@ -222,15 +239,26 @@
             fetchDatosGlobales(); 
         });
 
-        // --- CONVERSOR DE FECHAS PARA ORDENACIÓN ---
+        // --- CALCULADORA AUTOMÁTICA DE ALTA ---
+        function calcularTotalAlta() {
+            var precio = parseFloat(document.getElementById('n_precio').value) || 0;
+            var comision = parseFloat(document.getElementById('n_comision').value) || 0;
+            var total = precio + comision;
+            
+            // Mostrar solo si hay algún valor
+            if (document.getElementById('n_precio').value !== "" || document.getElementById('n_comision').value !== "") {
+                document.getElementById('n_total').value = total.toFixed(2) + "€";
+            } else {
+                document.getElementById('n_total').value = "";
+            }
+        }
+
         function procesarFechaString(fechaStr) {
-            if(!fechaStr) return new Date(0); // Si no hay fecha, mandarlo al fondo del baúl
+            if(!fechaStr) return new Date(0); 
             var partes = fechaStr.split('/');
-            // DD/MM/YYYY -> Año, Mes (0-11), Día
             return new Date(partes[2], partes[1] - 1, partes[0]);
         }
 
-        // --- FUNCIONES TRADUCTORAS DE ESTADO ---
         function esPagado(valor) {
             if (valor === true) return true;
             if (typeof valor === 'string') {
@@ -244,7 +272,6 @@
             return !!(item.url_rev || item.url_review || item['URL Review']);
         }
 
-        // --- FUNCIÓN CAMALEÓN: COPIA EL COLOR DEL LOGO ---
         function sincronizarColorLogo() {
             var img = document.getElementById('logo-img');
             var aplicar = function() {
@@ -352,7 +379,10 @@
                     fetch(scriptURL, { method: 'POST', body: datos }).then(r => r.json()).then(res => {
                         estado.style.display = "none";
                         if(res.pedido) { document.getElementById("n_pedido").value = res.pedido; }
-                        if(res.precio) { document.getElementById("n_precio").value = res.precio; }
+                        if(res.precio) { 
+                            document.getElementById("n_precio").value = res.precio; 
+                            calcularTotalAlta(); // Calculamos el total al escanear
+                        }
                         if(res.nombre) { document.getElementById("n_nombre").value = res.nombre; }
                     }).catch(err => {
                         estado.style.display = "block"; estado.innerText = "❌ Error escáner."; estado.style.color = "red";
@@ -384,14 +414,14 @@
                 document.querySelectorAll('.btn-filter').forEach(b => b.classList.remove('active'));
                 document.querySelector('.btn-filter').classList.add('active'); 
                 filtroTabActual = 'pendiente';
-                cargarTodosPagados = false; // Reiniciamos los 7 días
+                cargarTodosPagados = false; 
                 renderizarConFiltros();
             }).catch(error => { cont.innerHTML = "<p style='text-align:center; color:red;'>❌ Error de conexión.</p>"; });
         }
 
         function cambiarFiltroTab(tipo, btn) {
             filtroTabActual = tipo;
-            cargarTodosPagados = false; // Resetear cuando cambias de pestaña
+            cargarTodosPagados = false; 
             document.querySelectorAll('.btn-filter').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             document.getElementById('buscador-listado').value = "";
@@ -403,7 +433,6 @@
             renderizarConFiltros();
         }
 
-        // --- CEREBRO MATEMÁTICO ---
         function obtenerComision(nota) {
             if(!nota) return 0;
             var n = nota.toLowerCase();
@@ -423,7 +452,6 @@
             var btnMas = document.getElementById("btn-cargar-mas");
             cont.innerHTML = "";
 
-            // 1. Primer Filtro: Estado y Búsqueda
             var itemsFiltrados = datosListadoGlobal.filter(item => {
                 var cumpleEstado = false;
                 var pagadoOk = esPagado(item.pagado);
@@ -441,28 +469,23 @@
                 return cumpleEstado && cumpleBusqueda;
             });
 
-            // 2. Ordenación Inteligente
             if (filtroTabActual === 'pagado') {
-                // Pagados: Los más NUEVOS arriba
                 itemsFiltrados.sort((a, b) => procesarFechaString(b.f_pago).getTime() - procesarFechaString(a.f_pago).getTime());
             } else {
-                // Pendientes: Los más ANTIGUOS arriba (los que más urgen)
                 itemsFiltrados.sort((a, b) => procesarFechaString(a.f_alta).getTime() - procesarFechaString(b.f_alta).getTime());
             }
 
-            // 3. Limitar a 7 Días (Solo si estamos en Pagados, no estamos buscando nada, y no hemos dado al botón)
             var itemsAMostrar = itemsFiltrados;
             var cantidadOcultos = 0;
             
             if (filtroTabActual === 'pagado' && textoBusqueda === "" && !cargarTodosPagados) {
                 var fechaLimite = new Date();
-                fechaLimite.setDate(fechaLimite.getDate() - 7); // Retrocedemos 7 días
+                fechaLimite.setDate(fechaLimite.getDate() - 7); 
 
                 itemsAMostrar = itemsFiltrados.filter(item => procesarFechaString(item.f_pago) >= fechaLimite);
                 cantidadOcultos = itemsFiltrados.length - itemsAMostrar.length;
             }
 
-            // Control visual del botón "Cargar más"
             if (cantidadOcultos > 0) {
                 btnMas.style.display = "block";
                 btnMas.innerText = `⬇️ Mostrar historial anterior (${cantidadOcultos} productos)`;
@@ -470,7 +493,6 @@
                 btnMas.style.display = "none";
             }
 
-            // --- RENDERIZADO VISUAL ---
             if(itemsAMostrar.length > 0) {
                 var totalBase = 0; var totalComision = 0;
                 itemsAMostrar.forEach(item => {
@@ -528,7 +550,6 @@
             });
         }
 
-        // --- FUNCIONES DE ACCIÓN RÁPIDA (Nuevas) ---
         function borrarItem(id) {
             if(!confirm("¿Seguro que quieres borrar este producto DEFINITIVAMENTE de tu base de datos?")) return;
             document.getElementById('loading-indicator').style.display = 'block';
@@ -584,12 +605,30 @@
             btn.disabled = true; btn.innerText = "Guardando..."; msj.innerText = "⏳ Enviando datos..."; msj.style.color = "#333";
 
             var contacto = document.getElementById("sel_vendedores").value === "OTRO" ? document.getElementById("n_contacto_manual").value : document.getElementById("sel_vendedores").value;
+            var precioBase = document.getElementById("n_precio").value;
+            
+            // CONSTRUIR LA NOTA INYECTADA
+            var notasExtra = document.getElementById("n_notas").value.trim();
+            var comisionVal = document.getElementById("n_comision").value;
+            var totalVal = document.getElementById("n_total").value;
+            
+            var notaFinal = "";
+            if (comisionVal) {
+                notaFinal += "Comisión: " + comisionVal + "€\n";
+            }
+            if (totalVal && totalVal !== "0.00€") {
+                notaFinal += "Total: " + totalVal + "\n";
+            }
+            if (notasExtra) {
+                notaFinal += (notaFinal ? "\n" : "") + notasExtra;
+            }
+
             var d = new FormData(); d.append("accion", "nuevo");
             d.append("nombre", document.getElementById("n_nombre").value);
             d.append("pedido", document.getElementById("n_pedido").value);
             d.append("contacto", contacto);
-            d.append("precio", document.getElementById("n_precio").value);
-            d.append("notas", document.getElementById("n_notas").value);
+            d.append("precio", precioBase);
+            d.append("notas", notaFinal); // Enviamos el súper-paquete a la columna Notas
             
             fetch(scriptURL, { method: 'POST', body: d }).then(() => { 
                 msj.innerText = "✅ Guardado correctamente"; msj.style.color = "green";
@@ -610,8 +649,17 @@
         }
 
         function limpiarCampos(m) {
-            if(m==='nuevo') { ["n_nombre", "n_pedido", "n_precio", "n_notas", "n_contacto_manual"].forEach(id => document.getElementById(id).value = ""); document.getElementById("sel_vendedores").value = ""; verificarVendedorManual(); }
-            else { document.getElementById("sel_pendientes").value = ""; document.getElementById("a_pedido").value = ""; document.getElementById("a_url_review").value = ""; document.getElementById('a_fecha').valueAsDate = new Date(); }
+            if(m==='nuevo') { 
+                ["n_nombre", "n_pedido", "n_precio", "n_comision", "n_total", "n_notas", "n_contacto_manual"].forEach(id => document.getElementById(id).value = ""); 
+                document.getElementById("sel_vendedores").value = ""; 
+                verificarVendedorManual(); 
+            }
+            else { 
+                document.getElementById("sel_pendientes").value = ""; 
+                document.getElementById("a_pedido").value = ""; 
+                document.getElementById("a_url_review").value = ""; 
+                document.getElementById('a_fecha').valueAsDate = new Date(); 
+            }
         }
 
         function copiarInfo(btn) {
