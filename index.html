@@ -192,9 +192,7 @@
 
         // INICIO RAPIDO + CACHÉ + COLOR CAMALEÓN
         document.addEventListener("DOMContentLoaded", function() { 
-            // Intentar sincronizar color al inicio
             sincronizarColorLogo();
-            
             cargarVendedores();
             cargarDesdeCache(); 
             fetchDatosGlobales(); 
@@ -383,18 +381,19 @@
             renderizarConFiltros();
         }
 
-        // --- EL NUEVO CEREBRO MATEMÁTICO ---
+        // --- EL NUEVO CEREBRO MATEMÁTICO (CORREGIDO PARA RESTAS) ---
         function obtenerComision(nota) {
             if(!nota) return 0;
             var n = nota.toLowerCase();
             
-            // 1. Estilo directo: "Comisión: -15€", "Comisión 5€", "Comisión -2,99€"
-            var match1 = n.match(/(?:comis|extra|comisi[oó]n)\s*[:\-]?\s*[:\-]?\s*(\d+([.,]\d+)?)/);
-            if(match1) return parseFloat(match1[1].replace(',', '.'));
+            // 1. Estilo directo: "Comisión: -15€", "Comisión 5€", "Comisión: -2,99€"
+            // Ahora respeta el guion negativo si lo pones, extrayendo ej: "-15"
+            var match1 = n.match(/(?:comis|extra|comisi[oó]n)\s*:?\s*(-?\s*\d+([.,]\d+)?)/);
+            if(match1) return parseFloat(match1[1].replace(/\s/g, '').replace(',', '.'));
             
-            // 2. Estilo inverso: "5€ de comisión", "3€ comis"
-            var match2 = n.match(/(\d+([.,]\d+)?)\s*(?:€|eur)?\s*(?:de\s*)?(?:comis|extra|comisi[oó]n)/);
-            if(match2) return parseFloat(match2[1].replace(',', '.'));
+            // 2. Estilo inverso: "5€ de comisión", "-3€ comis"
+            var match2 = n.match(/(-?\s*\d+([.,]\d+)?)\s*(?:€|eur)?\s*(?:de\s*)?(?:comis|extra|comisi[oó]n)/);
+            if(match2) return parseFloat(match2[1].replace(/\s/g, '').replace(',', '.'));
             
             // 3. Estilo clásico original: "+5" o "+ 3.50"
             var match3 = n.match(/\+\s?(\d+([.,]\d+)?)/);
@@ -441,7 +440,11 @@
                 if(filtroTabActual === 'pagado') label = "Recuperado:";
                 
                 var desgloseHTML = "";
-                if(totalComision > 0) desgloseHTML = `(Base: ${totalBase.toFixed(2)}€ + Comis: ${totalComision.toFixed(2)}€)`;
+                // Como totalComision puede ser negativo, cambiamos un poco la presentación para que quede limpia
+                if(totalComision !== 0) {
+                    var signo = totalComision > 0 ? "+" : "";
+                    desgloseHTML = `(Base: ${totalBase.toFixed(2)}€ ${signo} Comis: ${totalComision.toFixed(2)}€)`;
+                }
 
                 document.getElementById("total-amount").innerText = totalGlobal.toFixed(2) + "€";
                 document.getElementById("total-desglose").innerText = desgloseHTML;
