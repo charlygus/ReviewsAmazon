@@ -15,13 +15,13 @@
         
         body { 
             font-family: sans-serif; 
-            background-color: #ffffff; /* Color por defecto por si falla el script */
+            background-color: #ffffff; 
             padding: 15px; 
             max-width: 600px; 
             margin: 0 auto; 
             padding-bottom: 50px; 
             user-select: none; 
-            transition: background-color 0.5s ease; /* Transición suave del color */
+            transition: background-color 0.5s ease; 
         }
 
         .header { text-align: center; margin-bottom: 20px; }
@@ -38,7 +38,6 @@
         .grupo-input { margin-bottom: 15px; }
         label { display: block; font-weight: bold; margin-bottom: 5px; color: #333; font-size: 14px; }
         
-        /* Inputs con fondo blanco para que resalten sobre cualquier color de fondo */
         input, textarea, select { 
             width: 100%; 
             padding: 12px; 
@@ -171,7 +170,7 @@
         </div>
 
         <div id="barra-total" class="total-bar">
-            Total a percibir: <span id="total-amount" class="total-amount">0.00€</span>
+            <span id="total-label">Total a percibir:</span> <span id="total-amount" class="total-amount">0.00€</span>
             <span id="total-desglose" class="total-desglose"></span>
         </div>
 
@@ -200,6 +199,22 @@
             cargarDesdeCache(); 
             fetchDatosGlobales(); 
         });
+
+        // --- FUNCIONES TRADUCTORAS DE ESTADO ---
+        // Evalúa de forma segura si algo está realmente pagado, ignorando textos engañosos
+        function esPagado(valor) {
+            if (valor === true) return true;
+            if (typeof valor === 'string') {
+                var v = valor.toLowerCase().trim();
+                return v === 'true' || v === 'verdadero' || v === 'sí' || v === 'si' || v === '1';
+            }
+            return false;
+        }
+
+        // Evalúa si existe la URL independientemente del nombre de la columna que envíe Sheets
+        function tieneUrl(item) {
+            return !!(item.url_rev || item.url_review || item['URL Review']);
+        }
 
         // --- FUNCIÓN CAMALEÓN: COPIA EL COLOR DEL LOGO ---
         function sincronizarColorLogo() {
@@ -291,7 +306,7 @@
         function rellenarSelector() {
             var sel = document.getElementById("sel_pendientes");
             sel.innerHTML = "<option value=''>👇 Selecciona el producto...</option>";
-            var pendientes = datosListadoGlobal.filter(item => !item.url_rev && !item.pagado);
+            var pendientes = datosListadoGlobal.filter(item => !tieneUrl(item) && !esPagado(item.pagado));
             if(pendientes.length === 0) {
                 sel.innerHTML = "<option value=''>✅ Todo al día (No hay pendientes)</option>";
                 return;
@@ -390,9 +405,12 @@
 
             var itemsFiltrados = datosListadoGlobal.filter(item => {
                 var cumpleEstado = false;
-                if (filtroTabActual === 'pagado') cumpleEstado = item.pagado;
-                else if (filtroTabActual === 'esperando-pago') cumpleEstado = item.url_rev && !item.pagado;
-                else if (filtroTabActual === 'pendiente') cumpleEstado = !item.url_rev && !item.pagado;
+                var pagadoOk = esPagado(item.pagado);
+                var urlOk = tieneUrl(item);
+
+                if (filtroTabActual === 'pagado') cumpleEstado = pagadoOk;
+                else if (filtroTabActual === 'esperando-pago') cumpleEstado = urlOk && !pagadoOk;
+                else if (filtroTabActual === 'pendiente') cumpleEstado = !urlOk && !pagadoOk;
 
                 var cumpleBusqueda = true;
                 if(textoBusqueda !== "") {
@@ -411,6 +429,7 @@
                 });
                 var totalGlobal = totalBase + totalComision;
                 barraTotal.style.display = "block";
+                
                 var label = "Total:";
                 if(filtroTabActual === 'esperando-pago') label = "Te deben (Base + Comis):";
                 if(filtroTabActual === 'pagado') label = "Recuperado:";
@@ -420,7 +439,7 @@
 
                 document.getElementById("total-amount").innerText = totalGlobal.toFixed(2) + "€";
                 document.getElementById("total-desglose").innerText = desgloseHTML;
-                barraTotal.firstChild.textContent = label + " "; 
+                document.getElementById("total-label").innerText = label + " "; 
             } else {
                 barraTotal.style.display = "none";
             }
@@ -431,10 +450,13 @@
             }
 
             itemsFiltrados.forEach(item => {
-                var estado = item.pagado ? "pagado" : (item.url_rev ? "esperando-pago" : "pendiente");
-                var badge = item.pagado ? "<span class='badge bg-ok'>PAGADO</span>" : (item.url_rev ? "<span class='badge bg-pay'>ESPERANDO</span>" : "<span class='badge bg-wait'>PENDIENTE</span>");
+                var pagadoOk = esPagado(item.pagado);
+                var urlOk = tieneUrl(item);
+
+                var estado = pagadoOk ? "pagado" : (urlOk ? "esperando-pago" : "pendiente");
+                var badge = pagadoOk ? "<span class='badge bg-ok'>PAGADO</span>" : (urlOk ? "<span class='badge bg-pay'>ESPERANDO</span>" : "<span class='badge bg-wait'>PENDIENTE</span>");
                 var notaHtml = item.notas ? `<div style="font-size:12px; color:#555; margin-top:5px; border-top:1px dashed #eee; padding-top:5px;">📝 ${item.notas}</div>` : "";
-                var btnPay = (!item.pagado && item.url_rev) ? `<button class="btn-card btn-pagar" onclick="marcarPagado('${item.pedido}')">💰 Cobrado</button>` : "";
+                var btnPay = (!pagadoOk && urlOk) ? `<button class="btn-card btn-pagar" onclick="marcarPagado('${item.pedido}')">💰 Cobrado</button>` : "";
                 
                 cont.innerHTML += `<div class="card ${estado}">
                     <div style="font-weight:bold;">${item.nombre} ${badge}</div>
