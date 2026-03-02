@@ -70,6 +70,10 @@
         .btn-card { padding: 8px 12px; font-size: 13px; flex: none; width: auto; }
         .btn-pagar { background: #28a745; }
         .btn-copy-id { background: #6c757d; font-family: monospace; letter-spacing: 0.5px; transition: all 0.2s; }
+        
+        /* Botones nuevos en la tarjeta */
+        .btn-editar-card { background: #ffc107; color: #000; }
+        .btn-borrar-card { background: #dc3545; }
 
         .filter-bar { display: flex; gap: 5px; margin-bottom: 10px; background: rgba(238, 238, 238, 0.8); padding: 5px; border-radius: 8px; }
         .btn-filter { background: transparent; color: #666; padding: 8px; font-size: 13px; border-radius: 5px; box-shadow: none; flex: 1; }
@@ -94,12 +98,19 @@
         .total-amount { font-size: 18px; color: #2ecc71; font-weight: bold; display: block; margin-top: 3px; }
         .total-desglose { font-size: 11px; color: #bdc3c7; margin-top: 5px; display: block; }
         
+        .btn-cargar-mas { background: #007bff; width: 100%; margin-top: 10px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+        
         #loading-indicator {
             position: fixed; top: 10px; right: 10px; 
             background: rgba(0,0,0,0.7); color: white; 
             padding: 5px 10px; border-radius: 20px; 
             font-size: 10px; display: none; z-index: 999;
         }
+
+        /* Ventana Flotante Modal para Edición */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-content { background: white; padding: 20px; border-radius: 12px; width: 90%; max-width: 400px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+        .modal-title { margin-top: 0; color: #333; font-size: 18px; border-bottom: 2px solid #007bff; padding-bottom: 10px; margin-bottom: 15px; }
     </style>
 </head>
 <body>
@@ -144,9 +155,7 @@
             </select>
             <input type="hidden" id="a_pedido">
         </div>
-
         <div class="grupo-input"><label>Fecha Review:</label><input type="date" id="a_fecha"></div>
-        
         <div class="grupo-input">
             <label>URL Review:</label>
             <div style="display:flex; gap:5px;">
@@ -154,7 +163,6 @@
                 <button onclick="pegarDesdePortapapeles()" style="flex:0.3; padding:5px; font-size:20px; background:#eee; color:#333;">📋</button>
             </div>
         </div>
-
         <div class="botones">
             <button class="btn-reset" onclick="limpiarCampos('actualizar')">Borrar</button>
             <button class="btn-guardar" onclick="enviarActualizacion()">Actualizar</button>
@@ -179,6 +187,22 @@
         </div>
 
         <div id="contenedor-tarjetas"><p style="text-align:center">Cargando...</p></div>
+        
+        <button id="btn-cargar-mas" class="btn-cargar-mas" style="display:none;" onclick="mostrarRestoPagados()">⬇️ Cargar Más Antiguos</button>
+    </div>
+
+    <div id="modal-editar" class="modal">
+        <div class="modal-content">
+            <h3 class="modal-title">✏️ Editar Producto</h3>
+            <input type="hidden" id="e_pedido">
+            <div class="grupo-input"><label>Producto:</label><input type="text" id="e_nombre"></div>
+            <div class="grupo-input"><label>Precio Base:</label><input type="number" step="0.01" id="e_precio"></div>
+            <div class="grupo-input"><label>Notas:</label><textarea id="e_notas"></textarea></div>
+            <div class="botones">
+                <button class="btn-reset" onclick="cerrarEdicion()">Cancelar</button>
+                <button class="btn-guardar" onclick="guardarEdicion()">Actualizar</button>
+            </div>
+        </div>
     </div>
 
     <p id="mensaje"></p>
@@ -189,14 +213,22 @@
 
         var datosListadoGlobal = [];
         var filtroTabActual = 'pendiente'; 
+        var cargarTodosPagados = false; // Estado para ver si mostramos los que tienen +7 días
 
-        // INICIO RAPIDO + CACHÉ + COLOR CAMALEÓN
         document.addEventListener("DOMContentLoaded", function() { 
             sincronizarColorLogo();
             cargarVendedores();
             cargarDesdeCache(); 
             fetchDatosGlobales(); 
         });
+
+        // --- CONVERSOR DE FECHAS PARA ORDENACIÓN ---
+        function procesarFechaString(fechaStr) {
+            if(!fechaStr) return new Date(0); // Si no hay fecha, mandarlo al fondo del baúl
+            var partes = fechaStr.split('/');
+            // DD/MM/YYYY -> Año, Mes (0-11), Día
+            return new Date(partes[2], partes[1] - 1, partes[0]);
+        }
 
         // --- FUNCIONES TRADUCTORAS DE ESTADO ---
         function esPagado(valor) {
@@ -215,7 +247,6 @@
         // --- FUNCIÓN CAMALEÓN: COPIA EL COLOR DEL LOGO ---
         function sincronizarColorLogo() {
             var img = document.getElementById('logo-img');
-            
             var aplicar = function() {
                 try {
                     var canvas = document.createElement('canvas');
@@ -223,21 +254,13 @@
                     var ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0, 1, 1);
                     var p = ctx.getImageData(0, 0, 1, 1).data;
-                    
                     if(p[3] === 0) return;
-
                     var hex = "#" + ((1 << 24) + (p[0] << 16) + (p[1] << 8) + p[2]).toString(16).slice(1);
-                    
                     document.body.style.backgroundColor = hex;
                     document.querySelector('meta[name="theme-color"]').setAttribute('content', hex);
-                    console.log("Color detectado y aplicado: " + hex);
-                } catch(e) {
-                    console.log("No se pudo leer el color del logo (posible bloqueo CORS o imagen no cargada)");
-                }
+                } catch(e) {}
             };
-
-            if(img.complete) { aplicar(); }
-            else { img.onload = aplicar; }
+            if(img.complete) { aplicar(); } else { img.onload = aplicar; }
         }
 
         function cargarDesdeCache() {
@@ -245,10 +268,8 @@
             if(localData) {
                 try {
                     datosListadoGlobal = JSON.parse(localData);
-                    if(document.getElementById('form-listado').classList.contains('active')) {
-                        renderizarConFiltros();
-                    }
-                } catch(e) { console.log("Error caché"); }
+                    if(document.getElementById('form-listado').classList.contains('active')) renderizarConFiltros();
+                } catch(e) {}
             }
         }
 
@@ -261,9 +282,7 @@
                     datosListadoGlobal = lista;
                     localStorage.setItem('mis_reviews_cache', JSON.stringify(lista));
                     document.getElementById('loading-indicator').style.display = 'none';
-                    if(document.getElementById('form-listado').classList.contains('active')) {
-                        renderizarConFiltros();
-                    }
+                    if(document.getElementById('form-listado').classList.contains('active')) renderizarConFiltros();
                     return lista;
                 })
                 .catch(err => { document.getElementById('loading-indicator').style.display = 'none'; });
@@ -277,8 +296,7 @@
             document.getElementById('form-'+modo).classList.add('active');
             
             if(modo === 'listado') {
-                if(datosListadoGlobal.length > 0) { cargarListado(); } 
-                else { cargarListado(true); }
+                if(datosListadoGlobal.length > 0) cargarListado(); else cargarListado(true);
             }
             if(modo === 'actualizar') {
                 document.getElementById('a_fecha').valueAsDate = new Date();
@@ -289,11 +307,8 @@
         function actualizarSelectorPendientes() {
             var sel = document.getElementById("sel_pendientes");
             sel.innerHTML = "<option value=''>Cargando...</option>";
-            if(datosListadoGlobal.length === 0) {
-                fetchDatosGlobales().then(() => rellenarSelector());
-            } else {
-                rellenarSelector();
-            }
+            if(datosListadoGlobal.length === 0) fetchDatosGlobales().then(() => rellenarSelector());
+            else rellenarSelector();
         }
 
         function rellenarSelector() {
@@ -369,36 +384,35 @@
                 document.querySelectorAll('.btn-filter').forEach(b => b.classList.remove('active'));
                 document.querySelector('.btn-filter').classList.add('active'); 
                 filtroTabActual = 'pendiente';
+                cargarTodosPagados = false; // Reiniciamos los 7 días
                 renderizarConFiltros();
             }).catch(error => { cont.innerHTML = "<p style='text-align:center; color:red;'>❌ Error de conexión.</p>"; });
         }
 
         function cambiarFiltroTab(tipo, btn) {
             filtroTabActual = tipo;
+            cargarTodosPagados = false; // Resetear cuando cambias de pestaña
             document.querySelectorAll('.btn-filter').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             document.getElementById('buscador-listado').value = "";
             renderizarConFiltros();
         }
 
-        // --- EL NUEVO CEREBRO MATEMÁTICO (CORREGIDO PARA RESTAS) ---
+        function mostrarRestoPagados() {
+            cargarTodosPagados = true;
+            renderizarConFiltros();
+        }
+
+        // --- CEREBRO MATEMÁTICO ---
         function obtenerComision(nota) {
             if(!nota) return 0;
             var n = nota.toLowerCase();
-            
-            // 1. Estilo directo: "Comisión: -15€", "Comisión 5€", "Comisión: -2,99€"
-            // Ahora respeta el guion negativo si lo pones, extrayendo ej: "-15"
             var match1 = n.match(/(?:comis|extra|comisi[oó]n)\s*:?\s*(-?\s*\d+([.,]\d+)?)/);
             if(match1) return parseFloat(match1[1].replace(/\s/g, '').replace(',', '.'));
-            
-            // 2. Estilo inverso: "5€ de comisión", "-3€ comis"
             var match2 = n.match(/(-?\s*\d+([.,]\d+)?)\s*(?:€|eur)?\s*(?:de\s*)?(?:comis|extra|comisi[oó]n)/);
             if(match2) return parseFloat(match2[1].replace(/\s/g, '').replace(',', '.'));
-            
-            // 3. Estilo clásico original: "+5" o "+ 3.50"
             var match3 = n.match(/\+\s?(\d+([.,]\d+)?)/);
             if(match3) return parseFloat(match3[1].replace(',', '.'));
-            
             return 0;
         }
 
@@ -406,8 +420,10 @@
             var cont = document.getElementById("contenedor-tarjetas");
             var textoBusqueda = document.getElementById('buscador-listado').value.toLowerCase();
             var barraTotal = document.getElementById("barra-total");
+            var btnMas = document.getElementById("btn-cargar-mas");
             cont.innerHTML = "";
 
+            // 1. Primer Filtro: Estado y Búsqueda
             var itemsFiltrados = datosListadoGlobal.filter(item => {
                 var cumpleEstado = false;
                 var pagadoOk = esPagado(item.pagado);
@@ -425,9 +441,39 @@
                 return cumpleEstado && cumpleBusqueda;
             });
 
-            if(itemsFiltrados.length > 0) {
+            // 2. Ordenación Inteligente
+            if (filtroTabActual === 'pagado') {
+                // Pagados: Los más NUEVOS arriba
+                itemsFiltrados.sort((a, b) => procesarFechaString(b.f_pago).getTime() - procesarFechaString(a.f_pago).getTime());
+            } else {
+                // Pendientes: Los más ANTIGUOS arriba (los que más urgen)
+                itemsFiltrados.sort((a, b) => procesarFechaString(a.f_alta).getTime() - procesarFechaString(b.f_alta).getTime());
+            }
+
+            // 3. Limitar a 7 Días (Solo si estamos en Pagados, no estamos buscando nada, y no hemos dado al botón)
+            var itemsAMostrar = itemsFiltrados;
+            var cantidadOcultos = 0;
+            
+            if (filtroTabActual === 'pagado' && textoBusqueda === "" && !cargarTodosPagados) {
+                var fechaLimite = new Date();
+                fechaLimite.setDate(fechaLimite.getDate() - 7); // Retrocedemos 7 días
+
+                itemsAMostrar = itemsFiltrados.filter(item => procesarFechaString(item.f_pago) >= fechaLimite);
+                cantidadOcultos = itemsFiltrados.length - itemsAMostrar.length;
+            }
+
+            // Control visual del botón "Cargar más"
+            if (cantidadOcultos > 0) {
+                btnMas.style.display = "block";
+                btnMas.innerText = `⬇️ Mostrar historial anterior (${cantidadOcultos} productos)`;
+            } else {
+                btnMas.style.display = "none";
+            }
+
+            // --- RENDERIZADO VISUAL ---
+            if(itemsAMostrar.length > 0) {
                 var totalBase = 0; var totalComision = 0;
-                itemsFiltrados.forEach(item => {
+                itemsAMostrar.forEach(item => {
                     var precio = parseFloat(item.precio) || 0;
                     var comision = obtenerComision(item.notas);
                     totalBase += precio; totalComision += comision;
@@ -437,10 +483,9 @@
                 
                 var label = "Total:";
                 if(filtroTabActual === 'esperando-pago') label = "Te deben (Base + Comis):";
-                if(filtroTabActual === 'pagado') label = "Recuperado:";
+                if(filtroTabActual === 'pagado') label = cargarTodosPagados ? "Recuperado (Histórico):" : "Recuperado (Últimos 7 días):";
                 
                 var desgloseHTML = "";
-                // Como totalComision puede ser negativo, cambiamos un poco la presentación para que quede limpia
                 if(totalComision !== 0) {
                     var signo = totalComision > 0 ? "+" : "";
                     desgloseHTML = `(Base: ${totalBase.toFixed(2)}€ ${signo} Comis: ${totalComision.toFixed(2)}€)`;
@@ -453,18 +498,19 @@
                 barraTotal.style.display = "none";
             }
 
-            if(itemsFiltrados.length === 0) {
-                cont.innerHTML = "<p style='text-align:center; color:#999; margin-top:20px;'>No se encontraron resultados.</p>";
+            if(itemsAMostrar.length === 0) {
+                cont.innerHTML = "<p style='text-align:center; color:#999; margin-top:20px;'>No hay productos en esta vista.</p>";
                 return;
             }
 
-            itemsFiltrados.forEach(item => {
+            itemsAMostrar.forEach(item => {
                 var pagadoOk = esPagado(item.pagado);
                 var urlOk = tieneUrl(item);
 
                 var estado = pagadoOk ? "pagado" : (urlOk ? "esperando-pago" : "pendiente");
                 var badge = pagadoOk ? "<span class='badge bg-ok'>PAGADO</span>" : (urlOk ? "<span class='badge bg-pay'>ESPERANDO</span>" : "<span class='badge bg-wait'>PENDIENTE</span>");
                 var notaHtml = item.notas ? `<div style="font-size:12px; color:#555; margin-top:5px; border-top:1px dashed #eee; padding-top:5px;">📝 ${item.notas}</div>` : "";
+                
                 var btnPay = (!pagadoOk && urlOk) ? `<button class="btn-card btn-pagar" onclick="marcarPagado('${item.pedido}')">💰 Cobrado</button>` : "";
                 
                 cont.innerHTML += `<div class="card ${estado}">
@@ -475,15 +521,53 @@
                     <div class="card-actions">
                         ${btnPay} 
                         <button class="btn-card btn-copy-id" onclick="copiarTexto('${item.pedido}', this)">📋 ${item.pedido}</button>
+                        <button class="btn-card btn-editar-card" onclick="abrirEdicion('${item.pedido}')">✏️ Editar</button>
+                        <button class="btn-card btn-borrar-card" onclick="borrarItem('${item.pedido}')">🗑️</button>
                     </div>
                 </div>`;
             });
         }
 
+        // --- FUNCIONES DE ACCIÓN RÁPIDA (Nuevas) ---
+        function borrarItem(id) {
+            if(!confirm("¿Seguro que quieres borrar este producto DEFINITIVAMENTE de tu base de datos?")) return;
+            document.getElementById('loading-indicator').style.display = 'block';
+            var d = new FormData(); d.append("accion", "borrar"); d.append("pedido", id);
+            fetch(scriptURL, { method: 'POST', body: d }).then(() => { fetchDatosGlobales(); });
+        }
+
+        function abrirEdicion(id) {
+            var item = datosListadoGlobal.find(i => i.pedido === id);
+            if(!item) return;
+            document.getElementById('e_pedido').value = item.pedido;
+            document.getElementById('e_nombre').value = item.nombre;
+            document.getElementById('e_precio').value = item.precio;
+            document.getElementById('e_notas').value = item.notas;
+            document.getElementById('modal-editar').style.display = 'flex';
+        }
+
+        function cerrarEdicion() {
+            document.getElementById('modal-editar').style.display = 'none';
+        }
+
+        function guardarEdicion() {
+            document.getElementById('modal-editar').style.display = 'none';
+            document.getElementById('loading-indicator').style.display = 'block';
+            
+            var d = new FormData(); d.append("accion", "editar");
+            d.append("pedido", document.getElementById('e_pedido').value);
+            d.append("nombre", document.getElementById('e_nombre').value);
+            d.append("precio", document.getElementById('e_precio').value);
+            d.append("notas", document.getElementById('e_notas').value);
+            
+            fetch(scriptURL, { method: 'POST', body: d }).then(() => { fetchDatosGlobales(); });
+        }
+
         function marcarPagado(id) {
-            if(!confirm("¿Confirmar pago?")) return;
+            if(!confirm("¿Confirmar cobro?")) return;
+            document.getElementById('loading-indicator').style.display = 'block';
             var d = new FormData(); d.append("accion", "marcar_pagado"); d.append("pedido", id);
-            fetch(scriptURL, { method: 'POST', body: d }).then(() => { fetchDatosGlobales().then(() => cargarListado()); });
+            fetch(scriptURL, { method: 'POST', body: d }).then(() => { fetchDatosGlobales(); });
         }
 
         function copiarTexto(t, btn) { 
