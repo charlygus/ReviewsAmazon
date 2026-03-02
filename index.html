@@ -81,8 +81,6 @@
         .search-container { margin-bottom: 15px; }
         #buscador-listado { border: 2px solid #007bff; background: #fff; padding: 10px; font-size: 15px; border-radius: 8px; }
 
-        #sel_pendientes { border: 2px solid #ff9800; background-color: #fff8e1; font-weight: bold; }
-
         .total-bar {
             background-color: #2c3e50;
             color: #ecf0f1;
@@ -166,7 +164,7 @@
 
     <div id="form-actualizar" class="form-section">
         <div class="grupo-input">
-            <label>¿Qué has reseñado? (Pendientes):</label>
+            <label>Producto a Reseñar:</label>
             <select id="sel_pendientes" onchange="seleccionarPendiente()">
                 <option value="">Cargando pendientes...</option>
             </select>
@@ -177,7 +175,7 @@
             <label>URL Review:</label>
             <div style="display:flex; gap:5px;">
                 <input type="url" id="a_url_review" placeholder="Pega aquí la URL">
-                <button onclick="pegarDesdePortapapeles()" style="flex:0.3; padding:5px; font-size:20px; background:#eee; color:#333;">📋</button>
+                <button onclick="pegarDesdePortapapeles()" style="flex: none; width: 50px; padding: 0; font-size: 20px; background: #f8f9fa; border: 1px solid #ccc; color: #333; border-radius: 6px; display: flex; align-items: center; justify-content: center; box-shadow: none;">📋</button>
             </div>
         </div>
         <div class="botones">
@@ -340,7 +338,7 @@
 
         function rellenarSelector() {
             var sel = document.getElementById("sel_pendientes");
-            sel.innerHTML = "<option value=''>👇 Selecciona el producto...</option>";
+            sel.innerHTML = "<option value=''>Selecciona un producto</option>";
             var pendientes = datosListadoGlobal.filter(item => !tieneUrl(item) && !esPagado(item.pagado));
             if(pendientes.length === 0) {
                 sel.innerHTML = "<option value=''>✅ Todo al día (No hay pendientes)</option>";
@@ -381,7 +379,7 @@
                         if(res.pedido) { document.getElementById("n_pedido").value = res.pedido; }
                         if(res.precio) { 
                             document.getElementById("n_precio").value = res.precio; 
-                            calcularTotalAlta(); // Calculamos el total al escanear
+                            calcularTotalAlta(); 
                         }
                         if(res.nombre) { document.getElementById("n_nombre").value = res.nombre; }
                     }).catch(err => {
@@ -607,7 +605,6 @@
             var contacto = document.getElementById("sel_vendedores").value === "OTRO" ? document.getElementById("n_contacto_manual").value : document.getElementById("sel_vendedores").value;
             var precioBase = document.getElementById("n_precio").value;
             
-            // CONSTRUIR LA NOTA INYECTADA
             var notasExtra = document.getElementById("n_notas").value.trim();
             var comisionVal = document.getElementById("n_comision").value;
             var totalVal = document.getElementById("n_total").value;
@@ -628,7 +625,7 @@
             d.append("pedido", document.getElementById("n_pedido").value);
             d.append("contacto", contacto);
             d.append("precio", precioBase);
-            d.append("notas", notaFinal); // Enviamos el súper-paquete a la columna Notas
+            d.append("notas", notaFinal); 
             
             fetch(scriptURL, { method: 'POST', body: d }).then(() => { 
                 msj.innerText = "✅ Guardado correctamente"; msj.style.color = "green";
