@@ -107,6 +107,7 @@
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: center; }
         .modal-content { background: white; padding: 20px; border-radius: 12px; width: 90%; max-width: 400px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
         .modal-title { margin-top: 0; color: #333; font-size: 18px; border-bottom: 2px solid #007bff; padding-bottom: 10px; margin-bottom: 15px; }
+        .modal-text { color: #555; font-size: 15px; margin-bottom: 20px; line-height: 1.4; }
 
         /* Estilo para el input de solo lectura */
         input[readonly] { background-color: #e9ecef; color: #155724; font-weight: bold; border-color: #c3e6cb; }
@@ -220,6 +221,17 @@
         </div>
     </div>
 
+    <div id="modal-confirmacion" class="modal">
+        <div class="modal-content" style="text-align: center;">
+            <h3 class="modal-title" id="confirm-title" style="border-bottom: none; margin-bottom: 5px;">Confirmación</h3>
+            <p id="confirm-msg" class="modal-text"></p>
+            <div class="botones">
+                <button class="btn-reset" onclick="cerrarConfirmacion()">Cancelar</button>
+                <button id="btn-confirm-action" onclick="ejecutarConfirmacion()" style="border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; color: white;">Aceptar</button>
+            </div>
+        </div>
+    </div>
+
     <p id="mensaje"></p>
 
     <script>
@@ -229,6 +241,10 @@
         var datosListadoGlobal = [];
         var filtroTabActual = 'pendiente'; 
         var cargarTodosPagados = false; 
+        
+        // Variables para el nuevo sistema de confirmación
+        var accionPendiente = "";
+        var idPendiente = "";
 
         document.addEventListener("DOMContentLoaded", function() { 
             sincronizarColorLogo();
@@ -237,13 +253,45 @@
             fetchDatosGlobales(); 
         });
 
+        // --- SISTEMA DE CONFIRMACIÓN ELEGANTE ---
+        function mostrarConfirmacion(titulo, mensaje, textoBoton, colorBoton, accion, id) {
+            document.getElementById("confirm-title").innerText = titulo;
+            document.getElementById("confirm-msg").innerText = mensaje;
+            
+            var btnAceptar = document.getElementById("btn-confirm-action");
+            btnAceptar.innerText = textoBoton;
+            btnAceptar.style.backgroundColor = colorBoton;
+            
+            accionPendiente = accion;
+            idPendiente = id;
+            
+            document.getElementById("modal-confirmacion").style.display = "flex";
+        }
+
+        function cerrarConfirmacion() {
+            document.getElementById("modal-confirmacion").style.display = "none";
+            accionPendiente = "";
+            idPendiente = "";
+        }
+
+        function ejecutarConfirmacion() {
+            cerrarConfirmacion();
+            document.getElementById('loading-indicator').style.display = 'block';
+            
+            var d = new FormData(); 
+            d.append("accion", accionPendiente); 
+            d.append("pedido", idPendiente);
+            
+            fetch(scriptURL, { method: 'POST', body: d }).then(() => { fetchDatosGlobales(); });
+        }
+
+
         // --- CALCULADORA AUTOMÁTICA DE ALTA ---
         function calcularTotalAlta() {
             var precio = parseFloat(document.getElementById('n_precio').value) || 0;
             var comision = parseFloat(document.getElementById('n_comision').value) || 0;
             var total = precio + comision;
             
-            // Mostrar solo si hay algún valor
             if (document.getElementById('n_precio').value !== "" || document.getElementById('n_comision').value !== "") {
                 document.getElementById('n_total').value = total.toFixed(2) + "€";
             } else {
@@ -548,11 +596,27 @@
             });
         }
 
+        // --- LAS FUNCIONES RENOVADAS PARA USAR EL MODAL ELEGANTE ---
         function borrarItem(id) {
-            if(!confirm("¿Seguro que quieres borrar este producto DEFINITIVAMENTE de tu base de datos?")) return;
-            document.getElementById('loading-indicator').style.display = 'block';
-            var d = new FormData(); d.append("accion", "borrar"); d.append("pedido", id);
-            fetch(scriptURL, { method: 'POST', body: d }).then(() => { fetchDatosGlobales(); });
+            mostrarConfirmacion(
+                "⚠️ Confirmar Borrado", 
+                "¿Seguro que quieres borrar este producto DEFINITIVAMENTE de tu base de datos?", 
+                "🗑️ Sí, borrar", 
+                "#dc3545", // Rojo
+                "borrar", 
+                id
+            );
+        }
+
+        function marcarPagado(id) {
+            mostrarConfirmacion(
+                "💰 Confirmar Cobro", 
+                "¿Confirmas que ya has recibido el dinero de este producto?", 
+                "✅ Sí, cobrar", 
+                "#28a745", // Verde
+                "marcar_pagado", 
+                id
+            );
         }
 
         function abrirEdicion(id) {
@@ -579,13 +643,6 @@
             d.append("precio", document.getElementById('e_precio').value);
             d.append("notas", document.getElementById('e_notas').value);
             
-            fetch(scriptURL, { method: 'POST', body: d }).then(() => { fetchDatosGlobales(); });
-        }
-
-        function marcarPagado(id) {
-            if(!confirm("¿Confirmar cobro?")) return;
-            document.getElementById('loading-indicator').style.display = 'block';
-            var d = new FormData(); d.append("accion", "marcar_pagado"); d.append("pedido", id);
             fetch(scriptURL, { method: 'POST', body: d }).then(() => { fetchDatosGlobales(); });
         }
 
