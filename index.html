@@ -59,12 +59,10 @@
         .btn-copiar { background-color: #17a2b8; }
         .btn-reset { background-color: #6c757d; flex: 0.4; }
         
-        /* Modificación para Animaciones en Tarjetas */
         .card { background: white; border-radius: 10px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.08); border-left: 6px solid #ccc; position: relative; transition: all 0.4s ease; overflow: hidden; }
         .card.pendiente { border-left-color: #ff9800; } 
         .card.esperando-pago { border-left-color: #17a2b8; } 
         .card.pagado { border-left-color: #28a745; } 
-        /* Borde rojo de emergencia para morosos */
         .card.moroso { border-left-color: #dc3545 !important; } 
         
         .slide-out-right { transform: translateX(120%); opacity: 0; }
@@ -247,7 +245,6 @@
             fetchDatosGlobales(); 
         });
 
-        // --- SISTEMA DE CONFIRMACIÓN CON ANIMACIÓN ---
         function mostrarConfirmacion(titulo, mensaje, textoBoton, colorBoton, accion, id) {
             document.getElementById("confirm-title").innerText = titulo;
             document.getElementById("confirm-msg").innerText = mensaje;
@@ -307,7 +304,6 @@
             });
         }
 
-        // --- FUNCIONES CORE ---
         function calcularTotalAlta() {
             var precio = parseFloat(document.getElementById('n_precio').value) || 0;
             var comision = parseFloat(document.getElementById('n_comision').value) || 0;
@@ -543,15 +539,11 @@
                 return cumpleEstado && cumpleBusqueda;
             });
 
-            // --- AQUI ESTA LA NUEVA LÓGICA DE ORDENACIÓN ---
             if (filtroTabActual === 'pagado') {
-                // Pagados: Los más recientes según fecha de pago
                 itemsFiltrados.sort((a, b) => procesarFechaString(b.f_pago).getTime() - procesarFechaString(a.f_pago).getTime());
             } else if (filtroTabActual === 'esperando-pago') {
-                // Esperando Pago: Los más antiguos según FECHA DE REVIEW
                 itemsFiltrados.sort((a, b) => procesarFechaString(a.f_review).getTime() - procesarFechaString(b.f_review).getTime());
             } else {
-                // Pendiente Review: Los más antiguos según FECHA DE ALTA
                 itemsFiltrados.sort((a, b) => procesarFechaString(a.f_alta).getTime() - procesarFechaString(b.f_alta).getTime());
             }
 
@@ -613,7 +605,6 @@
                 var badgeClass = pagadoOk ? "bg-ok" : (urlOk ? "bg-pay" : "bg-wait");
                 var badgeText = pagadoOk ? "PAGADO" : (urlOk ? "ESPERANDO" : "PENDIENTE");
                 
-                // --- CHIVATO DE MOROSOS ---
                 var alertaMorosoHTML = "";
                 var claseMoroso = "";
                 if (estado === "esperando-pago" && item.f_review) {
@@ -622,10 +613,14 @@
                     var difMilisegundos = Math.abs(hoy - fechaRev);
                     var difDias = Math.floor(difMilisegundos / (1000 * 60 * 60 * 24));
                     
-                    if (difDias >= 15) {
-                        alertaMorosoHTML = `<div style="color: #dc3545; font-size: 13px; font-weight: bold; margin-top: 8px; border-top: 1px dashed #f5c6cb; padding-top: 5px;">⚠️ Lleva ${difDias} días sin pagar. ¡Reclamar!</div>`;
+                    if (difDias >= 25 && difDias <= 29) {
+                        alertaMorosoHTML = `<div style="color: #dc3545; font-size: 13px; font-weight: bold; margin-top: 8px; border-top: 1px dashed #f5c6cb; padding-top: 5px;">⚠️ Riesgo de impago (${difDias} días). Preaviso de devolución en Amazon.</div>`;
                         claseMoroso = "moroso";
-                        badgeClass = "bg-moroso"; // Ponemos el badge en rojo también
+                        badgeClass = "bg-moroso";
+                    } else if (difDias >= 30) {
+                        alertaMorosoHTML = `<div style="color: #721c24; background-color: #f8d7da; font-size: 13px; font-weight: bold; margin-top: 8px; border-radius: 4px; padding: 5px;">❌ Límite de 30 días superado (${difDias} días). Plazo de devolución expirado.</div>`;
+                        claseMoroso = "moroso";
+                        badgeClass = "bg-moroso";
                     }
                 }
 
@@ -649,7 +644,6 @@
             });
         }
 
-        // --- RESTO DE FUNCIONES ---
         function abrirEdicion(id) {
             var item = datosListadoGlobal.find(i => i.pedido === id);
             if(!item) return;
