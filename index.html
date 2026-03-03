@@ -109,7 +109,6 @@
         .modal-title { margin-top: 0; color: #333; font-size: 18px; border-bottom: 2px solid #007bff; padding-bottom: 10px; margin-bottom: 15px; }
         .modal-text { color: #555; font-size: 15px; margin-bottom: 20px; line-height: 1.4; }
 
-        /* Estilo para el input de solo lectura */
         input[readonly] { background-color: #e9ecef; color: #155724; font-weight: bold; border-color: #c3e6cb; }
     </style>
 </head>
@@ -141,20 +140,10 @@
         </div>
         
         <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-            <div style="flex: 1;">
-                <label>Precio Base:</label>
-                <input type="number" step="0.01" id="n_precio" oninput="calcularTotalAlta()">
-            </div>
-            <div style="flex: 1;">
-                <label>Comisión (-/+) :</label>
-                <input type="number" step="0.01" id="n_comision" placeholder="Ej: -15" oninput="calcularTotalAlta()">
-            </div>
+            <div style="flex: 1;"><label>Precio Base:</label><input type="number" step="0.01" id="n_precio" oninput="calcularTotalAlta()"></div>
+            <div style="flex: 1;"><label>Comisión (-/+) :</label><input type="number" step="0.01" id="n_comision" placeholder="Ej: -15" oninput="calcularTotalAlta()"></div>
         </div>
-        <div class="grupo-input">
-            <label>Total Automático:</label>
-            <input type="text" id="n_total" readonly placeholder="0.00€">
-        </div>
-
+        <div class="grupo-input"><label>Total Automático:</label><input type="text" id="n_total" readonly placeholder="0.00€"></div>
         <div class="grupo-input"><label>Notas extra (opcional):</label><textarea id="n_notas" placeholder="Añade aquí cualquier otro detalle..."></textarea></div>
         
         <div class="botones">
@@ -166,9 +155,7 @@
     <div id="form-actualizar" class="form-section">
         <div class="grupo-input">
             <label>Producto a Reseñar:</label>
-            <select id="sel_pendientes" onchange="seleccionarPendiente()">
-                <option value="">Cargando pendientes...</option>
-            </select>
+            <select id="sel_pendientes" onchange="seleccionarPendiente()"><option value="">Cargando pendientes...</option></select>
             <input type="hidden" id="a_pedido">
         </div>
         <div class="grupo-input"><label>Fecha Review:</label><input type="date" id="a_fecha"></div>
@@ -242,7 +229,6 @@
         var filtroTabActual = 'pendiente'; 
         var cargarTodosPagados = false; 
         
-        // Variables para el nuevo sistema de confirmación
         var accionPendiente = "";
         var idPendiente = "";
 
@@ -253,7 +239,7 @@
             fetchDatosGlobales(); 
         });
 
-        // --- SISTEMA DE CONFIRMACIÓN ELEGANTE ---
+        // --- SISTEMA DE CONFIRMACIÓN ELEGANTE (CORREGIDO Y BLINDADO) ---
         function mostrarConfirmacion(titulo, mensaje, textoBoton, colorBoton, accion, id) {
             document.getElementById("confirm-title").innerText = titulo;
             document.getElementById("confirm-msg").innerText = mensaje;
@@ -275,23 +261,36 @@
         }
 
         function ejecutarConfirmacion() {
-            cerrarConfirmacion();
+            // 1. Mostrar estado de carga
             document.getElementById('loading-indicator').style.display = 'block';
             
+            // 2. Empaquetar datos ANTES de borrar las variables
             var d = new FormData(); 
             d.append("accion", accionPendiente); 
             d.append("pedido", idPendiente);
             
-            fetch(scriptURL, { method: 'POST', body: d }).then(() => { fetchDatosGlobales(); });
+            // 3. Ocultar el modal visualmente
+            document.getElementById("modal-confirmacion").style.display = "none";
+            
+            // 4. Enviar a Google Sheets con red de seguridad
+            fetch(scriptURL, { method: 'POST', body: d })
+            .then(() => { 
+                accionPendiente = ""; 
+                idPendiente = "";
+                return fetchDatosGlobales(); 
+            })
+            .catch(err => {
+                document.getElementById('loading-indicator').style.display = 'none';
+                alert("❌ Error de red: No se pudo conectar con la base de datos.");
+            });
         }
 
 
-        // --- CALCULADORA AUTOMÁTICA DE ALTA ---
+        // --- FUNCIONES CORE ---
         function calcularTotalAlta() {
             var precio = parseFloat(document.getElementById('n_precio').value) || 0;
             var comision = parseFloat(document.getElementById('n_comision').value) || 0;
             var total = precio + comision;
-            
             if (document.getElementById('n_precio').value !== "" || document.getElementById('n_comision').value !== "") {
                 document.getElementById('n_total').value = total.toFixed(2) + "€";
             } else {
@@ -358,7 +357,10 @@
                     if(document.getElementById('form-listado').classList.contains('active')) renderizarConFiltros();
                     return lista;
                 })
-                .catch(err => { document.getElementById('loading-indicator').style.display = 'none'; });
+                .catch(err => { 
+                    document.getElementById('loading-indicator').style.display = 'none';
+                    document.getElementById('contenedor-tarjetas').innerHTML = "<p style='text-align:center; color:red;'>❌ Error cargando datos. Revisa tu conexión a internet y recarga.</p>";
+                });
         }
 
         function cambiarModo(modo) {
@@ -422,7 +424,9 @@
                     datos.append("accion", "ocr_drive");
                     datos.append("mimetype", file.type);
                     datos.append("imagen", e.target.result);
-                    fetch(scriptURL, { method: 'POST', body: datos }).then(r => r.json()).then(res => {
+                    fetch(scriptURL, { method: 'POST', body: datos })
+                    .then(r => r.json())
+                    .then(res => {
                         estado.style.display = "none";
                         if(res.pedido) { document.getElementById("n_pedido").value = res.pedido; }
                         if(res.precio) { 
@@ -430,7 +434,8 @@
                             calcularTotalAlta(); 
                         }
                         if(res.nombre) { document.getElementById("n_nombre").value = res.nombre; }
-                    }).catch(err => {
+                    })
+                    .catch(err => {
                         estado.style.display = "block"; estado.innerText = "❌ Error escáner."; estado.style.color = "red";
                     });
                 };
@@ -441,7 +446,9 @@
         function cargarVendedores() {
             var sel = document.getElementById("sel_vendedores");
             var d = new FormData(); d.append("accion", "leer_vendedores");
-            fetch(scriptURL, { method: 'POST', body: d }).then(r => r.json()).then(lista => {
+            fetch(scriptURL, { method: 'POST', body: d })
+            .then(r => r.json())
+            .then(lista => {
                 sel.innerHTML = "<option value=''>Selecciona Vendedor</option>";
                 lista.forEach(v => { var opt = document.createElement("option"); opt.value = v; opt.innerText = v; sel.appendChild(opt); });
                 var optM = document.createElement("option"); optM.value = "OTRO"; optM.innerText = "+ NUEVO"; sel.appendChild(optM);
@@ -462,7 +469,7 @@
                 filtroTabActual = 'pendiente';
                 cargarTodosPagados = false; 
                 renderizarConFiltros();
-            }).catch(error => { cont.innerHTML = "<p style='text-align:center; color:red;'>❌ Error de conexión.</p>"; });
+            });
         }
 
         function cambiarFiltroTab(tipo, btn) {
@@ -596,13 +603,13 @@
             });
         }
 
-        // --- LAS FUNCIONES RENOVADAS PARA USAR EL MODAL ELEGANTE ---
+        // --- LAS FUNCIONES DE ACCIÓN CON EL MODAL ELEGANTE ---
         function borrarItem(id) {
             mostrarConfirmacion(
                 "⚠️ Confirmar Borrado", 
                 "¿Seguro que quieres borrar este producto DEFINITIVAMENTE de tu base de datos?", 
                 "🗑️ Sí, borrar", 
-                "#dc3545", // Rojo
+                "#dc3545", 
                 "borrar", 
                 id
             );
@@ -613,7 +620,7 @@
                 "💰 Confirmar Cobro", 
                 "¿Confirmas que ya has recibido el dinero de este producto?", 
                 "✅ Sí, cobrar", 
-                "#28a745", // Verde
+                "#28a745", 
                 "marcar_pagado", 
                 id
             );
@@ -643,7 +650,12 @@
             d.append("precio", document.getElementById('e_precio').value);
             d.append("notas", document.getElementById('e_notas').value);
             
-            fetch(scriptURL, { method: 'POST', body: d }).then(() => { fetchDatosGlobales(); });
+            fetch(scriptURL, { method: 'POST', body: d })
+            .then(() => fetchDatosGlobales())
+            .catch(err => {
+                document.getElementById('loading-indicator').style.display = 'none';
+                alert("❌ Error de red al intentar guardar la edición.");
+            });
         }
 
         function copiarTexto(t, btn) { 
@@ -667,15 +679,9 @@
             var totalVal = document.getElementById("n_total").value;
             
             var notaFinal = "";
-            if (comisionVal) {
-                notaFinal += "Comisión: " + comisionVal + "€\n";
-            }
-            if (totalVal && totalVal !== "0.00€") {
-                notaFinal += "Total: " + totalVal + "\n";
-            }
-            if (notasExtra) {
-                notaFinal += (notaFinal ? "\n" : "") + notasExtra;
-            }
+            if (comisionVal) { notaFinal += "Comisión: " + comisionVal + "€\n"; }
+            if (totalVal && totalVal !== "0.00€") { notaFinal += "Total: " + totalVal + "\n"; }
+            if (notasExtra) { notaFinal += (notaFinal ? "\n" : "") + notasExtra; }
 
             var d = new FormData(); d.append("accion", "nuevo");
             d.append("nombre", document.getElementById("n_nombre").value);
@@ -684,11 +690,18 @@
             d.append("precio", precioBase);
             d.append("notas", notaFinal); 
             
-            fetch(scriptURL, { method: 'POST', body: d }).then(() => { 
+            fetch(scriptURL, { method: 'POST', body: d })
+            .then(() => { 
                 msj.innerText = "✅ Guardado correctamente"; msj.style.color = "green";
                 limpiarCampos('nuevo'); cargarVendedores(); fetchDatosGlobales();
                 btn.disabled = false; btn.innerText = "Guardar";
-            }).catch(error => { msj.innerText = "❌ Error al guardar."; msj.style.color = "red"; btn.disabled = false; btn.innerText = "Guardar"; });
+            })
+            .catch(error => { 
+                msj.innerText = "❌ Error al guardar. Revisa tu conexión."; 
+                msj.style.color = "red"; 
+                btn.disabled = false; 
+                btn.innerText = "Guardar"; 
+            });
         }
 
         function enviarActualizacion() {
@@ -699,7 +712,16 @@
             d.append("pedido", document.getElementById("a_pedido").value);
             d.append("fecha", document.getElementById("a_fecha").value);
             d.append("url_review", document.getElementById("a_url_review").value);
-            fetch(scriptURL, { method: 'POST', body: d }).then(() => { msj.innerText = "✅ Hecho"; limpiarCampos('actualizar'); fetchDatosGlobales(); });
+            
+            fetch(scriptURL, { method: 'POST', body: d })
+            .then(() => { 
+                msj.innerText = "✅ Hecho"; msj.style.color = "green"; 
+                limpiarCampos('actualizar'); 
+                fetchDatosGlobales(); 
+            })
+            .catch(err => {
+                msj.innerText = "❌ Error al actualizar."; msj.style.color = "red";
+            });
         }
 
         function limpiarCampos(m) {
