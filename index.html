@@ -59,17 +59,20 @@
         .btn-copiar { background-color: #17a2b8; }
         .btn-reset { background-color: #6c757d; flex: 0.4; }
         
+        /* Modificación para Animaciones y Alertas de Tarjetas */
         .card { background: white; border-radius: 10px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.08); border-left: 6px solid #ccc; position: relative; transition: all 0.4s ease; overflow: hidden; }
         .card.pendiente { border-left-color: #ff9800; } 
         .card.esperando-pago { border-left-color: #17a2b8; } 
         .card.pagado { border-left-color: #28a745; } 
-        .card.moroso { border-left-color: #dc3545 !important; } 
+        .card.aviso-naranja { border-left-color: #ffc107 !important; } /* Alerta a 7 días laborables */
+        .card.moroso { border-left-color: #dc3545 !important; } /* Alerta crítica 25+ días naturales */
         
         .slide-out-right { transform: translateX(120%); opacity: 0; }
         .slide-out-left { transform: translateX(-120%); opacity: 0; }
 
         .badge { display: inline-block; padding: 3px 6px; font-size: 10px; border-radius: 4px; color: white; margin-left: 5px; }
-        .bg-ok { background: #28a745; } .bg-wait { background: #ff9800; } .bg-pay { background: #17a2b8; } .bg-moroso { background: #dc3545; }
+        .bg-ok { background: #28a745; } .bg-wait { background: #ff9800; } .bg-pay { background: #17a2b8; } 
+        .bg-orange { background: #ffc107; color: #000; } .bg-moroso { background: #dc3545; }
         
         #mensaje { text-align: center; margin-top: 15px; font-weight: bold; min-height: 20px; color: #333; }
         .card-actions { margin-top: 10px; display: flex; gap: 5px; flex-wrap: wrap; }
@@ -245,6 +248,7 @@
             fetchDatosGlobales(); 
         });
 
+        // --- SISTEMA DE CONFIRMACIÓN CON ANIMACIÓN ---
         function mostrarConfirmacion(titulo, mensaje, textoBoton, colorBoton, accion, id) {
             document.getElementById("confirm-title").innerText = titulo;
             document.getElementById("confirm-msg").innerText = mensaje;
@@ -304,6 +308,7 @@
             });
         }
 
+        // --- FUNCIONES MATEMÁTICAS Y FECHAS ---
         function calcularTotalAlta() {
             var precio = parseFloat(document.getElementById('n_precio').value) || 0;
             var comision = parseFloat(document.getElementById('n_comision').value) || 0;
@@ -321,6 +326,29 @@
             return new Date(partes[2], partes[1] - 1, partes[0]);
         }
 
+        function calcularDiasLaborables(fechaInicio, fechaFin) {
+            var fInicio = new Date(fechaInicio.getTime());
+            var fFin = new Date(fechaFin.getTime());
+            fInicio.setHours(0,0,0,0);
+            fFin.setHours(0,0,0,0);
+            
+            if (fInicio > fFin) return 0;
+            
+            var dias = 0;
+            var actual = new Date(fInicio.getTime());
+            actual.setDate(actual.getDate() + 1); 
+            
+            while(actual <= fFin) {
+                var diaSemana = actual.getDay();
+                if(diaSemana !== 0 && diaSemana !== 6) {
+                    dias++;
+                }
+                actual.setDate(actual.getDate() + 1);
+            }
+            return dias;
+        }
+
+        // --- CORE Y CONEXIÓN ---
         function esPagado(valor) {
             if (valor === true) return true;
             if (typeof valor === 'string') {
@@ -605,22 +633,37 @@
                 var badgeClass = pagadoOk ? "bg-ok" : (urlOk ? "bg-pay" : "bg-wait");
                 var badgeText = pagadoOk ? "PAGADO" : (urlOk ? "ESPERANDO" : "PENDIENTE");
                 
+                // --- LÓGICA DE ALERTAS MILIMÉTRICA ---
                 var alertaMorosoHTML = "";
                 var claseMoroso = "";
+                
                 if (estado === "esperando-pago" && item.f_review) {
                     var fechaRev = procesarFechaString(item.f_review);
                     var hoy = new Date();
-                    var difMilisegundos = Math.abs(hoy - fechaRev);
-                    var difDias = Math.floor(difMilisegundos / (1000 * 60 * 60 * 24));
                     
-                    if (difDias >= 25 && difDias <= 29) {
-                        alertaMorosoHTML = `<div style="color: #dc3545; font-size: 13px; font-weight: bold; margin-top: 8px; border-top: 1px dashed #f5c6cb; padding-top: 5px;">⚠️ Riesgo de impago (${difDias} días). Preaviso de devolución en Amazon.</div>`;
+                    // Resetear horas para cálculo exacto de días naturales
+                    fechaRev.setHours(0,0,0,0);
+                    var hoyCopy = new Date(hoy.getTime());
+                    hoyCopy.setHours(0,0,0,0);
+
+                    var difMilisegundos = hoyCopy - fechaRev;
+                    var difNaturales = Math.floor(difMilisegundos / (1000 * 60 * 60 * 24));
+                    var difLaborables = calcularDiasLaborables(fechaRev, hoyCopy);
+
+                    if (difNaturales >= 30) {
+                        alertaMorosoHTML = `<div style="color: #721c24; background-color: #f8d7da; font-size: 13px; font-weight: bold; margin-top: 8px; border-radius: 4px; padding: 5px;">❌ Plazo de devolución en Amazon expirado (+30 días).</div>`;
                         claseMoroso = "moroso";
                         badgeClass = "bg-moroso";
-                    } else if (difDias >= 30) {
-                        alertaMorosoHTML = `<div style="color: #721c24; background-color: #f8d7da; font-size: 13px; font-weight: bold; margin-top: 8px; border-radius: 4px; padding: 5px;">❌ Límite de 30 días superado (${difDias} días). Plazo de devolución expirado.</div>`;
+                    } else if (difNaturales >= 25 && difNaturales <= 29) {
+                        var diasPara30 = 30 - difNaturales;
+                        alertaMorosoHTML = `<div style="color: #dc3545; font-size: 13px; font-weight: bold; margin-top: 8px; border-top: 1px dashed #f5c6cb; padding-top: 5px;">⚠️ Riesgo de impago. Quedan ${diasPara30} días para límite de devolución en Amazon.</div>`;
                         claseMoroso = "moroso";
                         badgeClass = "bg-moroso";
+                    } else if (difLaborables >= 10 && difLaborables <= 17) {
+                        var laborablesRestantes = 17 - difLaborables;
+                        alertaMorosoHTML = `<div style="color: #856404; background-color: #fff3cd; font-size: 13px; font-weight: bold; margin-top: 8px; border-radius: 4px; padding: 5px;">⏳ Faltan ${laborablesRestantes} días laborables para superar el periodo habitual.</div>`;
+                        claseMoroso = "aviso-naranja";
+                        badgeClass = "bg-orange"; 
                     }
                 }
 
@@ -644,6 +687,7 @@
             });
         }
 
+        // --- MANEJO DE FORMULARIOS ---
         function abrirEdicion(id) {
             var item = datosListadoGlobal.find(i => i.pedido === id);
             if(!item) return;
