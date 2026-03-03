@@ -59,10 +59,15 @@
         .btn-copiar { background-color: #17a2b8; }
         .btn-reset { background-color: #6c757d; flex: 0.4; }
         
-        .card { background: white; border-radius: 10px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.08); border-left: 6px solid #ccc; position: relative; }
+        /* Modificación para Animaciones en Tarjetas */
+        .card { background: white; border-radius: 10px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.08); border-left: 6px solid #ccc; position: relative; transition: all 0.4s ease; overflow: hidden; }
         .card.pendiente { border-left-color: #ff9800; } 
         .card.esperando-pago { border-left-color: #17a2b8; } 
         .card.pagado { border-left-color: #28a745; } 
+        
+        .slide-out-right { transform: translateX(120%); opacity: 0; }
+        .slide-out-left { transform: translateX(-120%); opacity: 0; }
+
         .badge { display: inline-block; padding: 3px 6px; font-size: 10px; border-radius: 4px; color: white; margin-left: 5px; }
         .bg-ok { background: #28a745; } .bg-wait { background: #ff9800; } .bg-pay { background: #17a2b8; }
         #mensaje { text-align: center; margin-top: 15px; font-weight: bold; min-height: 20px; color: #333; }
@@ -239,7 +244,7 @@
             fetchDatosGlobales(); 
         });
 
-        // --- SISTEMA DE CONFIRMACIÓN ELEGANTE (CORREGIDO Y BLINDADO) ---
+        // --- SISTEMA DE CONFIRMACIÓN CON ANIMACIÓN INMEDIATA ---
         function mostrarConfirmacion(titulo, mensaje, textoBoton, colorBoton, accion, id) {
             document.getElementById("confirm-title").innerText = titulo;
             document.getElementById("confirm-msg").innerText = mensaje;
@@ -261,18 +266,36 @@
         }
 
         function ejecutarConfirmacion() {
-            // 1. Mostrar estado de carga
-            document.getElementById('loading-indicator').style.display = 'block';
-            
-            // 2. Empaquetar datos ANTES de borrar las variables
-            var d = new FormData(); 
-            d.append("accion", accionPendiente); 
-            d.append("pedido", idPendiente);
-            
-            // 3. Ocultar el modal visualmente
+            var accion = accionPendiente;
+            var id = idPendiente;
+
+            // 1. Ocultamos la ventana de aviso al instante
             document.getElementById("modal-confirmacion").style.display = "none";
             
-            // 4. Enviar a Google Sheets con red de seguridad
+            // 2. Buscamos la tarjeta y activamos la animación visual
+            var cardDOM = document.getElementById("card-" + id);
+            if(cardDOM) {
+                if(accion === "marcar_pagado") {
+                    cardDOM.classList.add("slide-out-right");
+                } else if(accion === "borrar") {
+                    cardDOM.classList.add("slide-out-left");
+                }
+                
+                // Efecto de colapso: tras 300ms de deslizarse, el hueco se cierra para que las otras suban
+                setTimeout(() => {
+                    cardDOM.style.height = "0px";
+                    cardDOM.style.padding = "0px";
+                    cardDOM.style.marginBottom = "0px";
+                    cardDOM.style.border = "none";
+                }, 300);
+            }
+            
+            // 3. Empaquetamos y enviamos la orden real a la base de datos de fondo
+            document.getElementById('loading-indicator').style.display = 'block';
+            var d = new FormData(); 
+            d.append("accion", accion); 
+            d.append("pedido", id);
+            
             fetch(scriptURL, { method: 'POST', body: d })
             .then(() => { 
                 accionPendiente = ""; 
@@ -284,7 +307,6 @@
                 alert("❌ Error de red: No se pudo conectar con la base de datos.");
             });
         }
-
 
         // --- FUNCIONES CORE ---
         function calcularTotalAlta() {
@@ -588,7 +610,8 @@
                 
                 var btnPay = (!pagadoOk && urlOk) ? `<button class="btn-card btn-pagar" onclick="marcarPagado('${item.pedido}')">💰 Cobrado</button>` : "";
                 
-                cont.innerHTML += `<div class="card ${estado}">
+                // --- CAMBIO CLAVE: AÑADIDO EL ID UNICO A LA TARJETA ---
+                cont.innerHTML += `<div class="card ${estado}" id="card-${item.pedido}">
                     <div style="font-weight:bold;">${item.nombre} ${badge}</div>
                     <div style="font-size:13px; margin-top:5px;">Vendedor: ${item.contacto} | Precio: <b>${item.precio}€</b></div>
                     ${notaHtml}
@@ -605,25 +628,11 @@
 
         // --- LAS FUNCIONES DE ACCIÓN CON EL MODAL ELEGANTE ---
         function borrarItem(id) {
-            mostrarConfirmacion(
-                "⚠️ Confirmar Borrado", 
-                "¿Seguro que quieres borrar este producto DEFINITIVAMENTE de tu base de datos?", 
-                "🗑️ Sí, borrar", 
-                "#dc3545", 
-                "borrar", 
-                id
-            );
+            mostrarConfirmacion("⚠️ Confirmar Borrado", "¿Seguro que quieres borrar este producto DEFINITIVAMENTE de tu base de datos?", "🗑️ Sí, borrar", "#dc3545", "borrar", id);
         }
 
         function marcarPagado(id) {
-            mostrarConfirmacion(
-                "💰 Confirmar Cobro", 
-                "¿Confirmas que ya has recibido el dinero de este producto?", 
-                "✅ Sí, cobrar", 
-                "#28a745", 
-                "marcar_pagado", 
-                id
-            );
+            mostrarConfirmacion("💰 Confirmar Cobro", "¿Confirmas que ya has recibido el dinero de este producto?", "✅ Sí, cobrar", "#28a745", "marcar_pagado", id);
         }
 
         function abrirEdicion(id) {
