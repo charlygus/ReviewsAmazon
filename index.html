@@ -64,12 +64,15 @@
         .card.pendiente { border-left-color: #ff9800; } 
         .card.esperando-pago { border-left-color: #17a2b8; } 
         .card.pagado { border-left-color: #28a745; } 
+        /* Borde rojo de emergencia para morosos */
+        .card.moroso { border-left-color: #dc3545 !important; } 
         
         .slide-out-right { transform: translateX(120%); opacity: 0; }
         .slide-out-left { transform: translateX(-120%); opacity: 0; }
 
         .badge { display: inline-block; padding: 3px 6px; font-size: 10px; border-radius: 4px; color: white; margin-left: 5px; }
-        .bg-ok { background: #28a745; } .bg-wait { background: #ff9800; } .bg-pay { background: #17a2b8; }
+        .bg-ok { background: #28a745; } .bg-wait { background: #ff9800; } .bg-pay { background: #17a2b8; } .bg-moroso { background: #dc3545; }
+        
         #mensaje { text-align: center; margin-top: 15px; font-weight: bold; min-height: 20px; color: #333; }
         .card-actions { margin-top: 10px; display: flex; gap: 5px; flex-wrap: wrap; }
         .btn-card { padding: 8px 12px; font-size: 13px; flex: none; width: auto; }
@@ -244,7 +247,7 @@
             fetchDatosGlobales(); 
         });
 
-        // --- SISTEMA DE CONFIRMACIÓN CON ANIMACIÓN INMEDIATA ---
+        // --- SISTEMA DE CONFIRMACIÓN CON ANIMACIÓN ---
         function mostrarConfirmacion(titulo, mensaje, textoBoton, colorBoton, accion, id) {
             document.getElementById("confirm-title").innerText = titulo;
             document.getElementById("confirm-msg").innerText = mensaje;
@@ -269,10 +272,8 @@
             var accion = accionPendiente;
             var id = idPendiente;
 
-            // 1. Ocultamos la ventana de aviso al instante
             document.getElementById("modal-confirmacion").style.display = "none";
             
-            // 2. Buscamos la tarjeta y activamos la animación visual
             var cardDOM = document.getElementById("card-" + id);
             if(cardDOM) {
                 if(accion === "marcar_pagado") {
@@ -281,7 +282,6 @@
                     cardDOM.classList.add("slide-out-left");
                 }
                 
-                // Efecto de colapso: tras 300ms de deslizarse, el hueco se cierra para que las otras suban
                 setTimeout(() => {
                     cardDOM.style.height = "0px";
                     cardDOM.style.padding = "0px";
@@ -290,7 +290,6 @@
                 }, 300);
             }
             
-            // 3. Empaquetamos y enviamos la orden real a la base de datos de fondo
             document.getElementById('loading-indicator').style.display = 'block';
             var d = new FormData(); 
             d.append("accion", accion); 
@@ -544,9 +543,15 @@
                 return cumpleEstado && cumpleBusqueda;
             });
 
+            // --- AQUI ESTA LA NUEVA LÓGICA DE ORDENACIÓN ---
             if (filtroTabActual === 'pagado') {
+                // Pagados: Los más recientes según fecha de pago
                 itemsFiltrados.sort((a, b) => procesarFechaString(b.f_pago).getTime() - procesarFechaString(a.f_pago).getTime());
+            } else if (filtroTabActual === 'esperando-pago') {
+                // Esperando Pago: Los más antiguos según FECHA DE REVIEW
+                itemsFiltrados.sort((a, b) => procesarFechaString(a.f_review).getTime() - procesarFechaString(b.f_review).getTime());
             } else {
+                // Pendiente Review: Los más antiguos según FECHA DE ALTA
                 itemsFiltrados.sort((a, b) => procesarFechaString(a.f_alta).getTime() - procesarFechaString(b.f_alta).getTime());
             }
 
@@ -605,17 +610,35 @@
                 var urlOk = tieneUrl(item);
 
                 var estado = pagadoOk ? "pagado" : (urlOk ? "esperando-pago" : "pendiente");
-                var badge = pagadoOk ? "<span class='badge bg-ok'>PAGADO</span>" : (urlOk ? "<span class='badge bg-pay'>ESPERANDO</span>" : "<span class='badge bg-wait'>PENDIENTE</span>");
-                var notaHtml = item.notas ? `<div style="font-size:12px; color:#555; margin-top:5px; border-top:1px dashed #eee; padding-top:5px;">📝 ${item.notas}</div>` : "";
+                var badgeClass = pagadoOk ? "bg-ok" : (urlOk ? "bg-pay" : "bg-wait");
+                var badgeText = pagadoOk ? "PAGADO" : (urlOk ? "ESPERANDO" : "PENDIENTE");
                 
+                // --- CHIVATO DE MOROSOS ---
+                var alertaMorosoHTML = "";
+                var claseMoroso = "";
+                if (estado === "esperando-pago" && item.f_review) {
+                    var fechaRev = procesarFechaString(item.f_review);
+                    var hoy = new Date();
+                    var difMilisegundos = Math.abs(hoy - fechaRev);
+                    var difDias = Math.floor(difMilisegundos / (1000 * 60 * 60 * 24));
+                    
+                    if (difDias >= 15) {
+                        alertaMorosoHTML = `<div style="color: #dc3545; font-size: 13px; font-weight: bold; margin-top: 8px; border-top: 1px dashed #f5c6cb; padding-top: 5px;">⚠️ Lleva ${difDias} días sin pagar. ¡Reclamar!</div>`;
+                        claseMoroso = "moroso";
+                        badgeClass = "bg-moroso"; // Ponemos el badge en rojo también
+                    }
+                }
+
+                var badge = `<span class='badge ${badgeClass}'>${badgeText}</span>`;
+                var notaHtml = item.notas ? `<div style="font-size:12px; color:#555; margin-top:5px; border-top:1px dashed #eee; padding-top:5px;">📝 ${item.notas}</div>` : "";
                 var btnPay = (!pagadoOk && urlOk) ? `<button class="btn-card btn-pagar" onclick="marcarPagado('${item.pedido}')">💰 Cobrado</button>` : "";
                 
-                // --- CAMBIO CLAVE: AÑADIDO EL ID UNICO A LA TARJETA ---
-                cont.innerHTML += `<div class="card ${estado}" id="card-${item.pedido}">
+                cont.innerHTML += `<div class="card ${estado} ${claseMoroso}" id="card-${item.pedido}">
                     <div style="font-weight:bold;">${item.nombre} ${badge}</div>
                     <div style="font-size:13px; margin-top:5px;">Vendedor: ${item.contacto} | Precio: <b>${item.precio}€</b></div>
                     ${notaHtml}
-                    <div style="font-size:11px; text-align:right; color:#888; margin-top:8px;">Alta: ${item.f_alta || '-'} | Review: ${item.fecha || item.f_review || '-'}</div>
+                    ${alertaMorosoHTML}
+                    <div style="font-size:11px; text-align:right; color:#888; margin-top:8px;">Alta: ${item.f_alta || '-'} | Review: ${item.f_review || item.fecha || '-'}</div>
                     <div class="card-actions">
                         ${btnPay} 
                         <button class="btn-card btn-copy-id" onclick="copiarTexto('${item.pedido}', this)">📋 ${item.pedido}</button>
@@ -626,15 +649,7 @@
             });
         }
 
-        // --- LAS FUNCIONES DE ACCIÓN CON EL MODAL ELEGANTE ---
-        function borrarItem(id) {
-            mostrarConfirmacion("⚠️ Confirmar Borrado", "¿Seguro que quieres borrar este producto DEFINITIVAMENTE de tu base de datos?", "🗑️ Sí, borrar", "#dc3545", "borrar", id);
-        }
-
-        function marcarPagado(id) {
-            mostrarConfirmacion("💰 Confirmar Cobro", "¿Confirmas que ya has recibido el dinero de este producto?", "✅ Sí, cobrar", "#28a745", "marcar_pagado", id);
-        }
-
+        // --- RESTO DE FUNCIONES ---
         function abrirEdicion(id) {
             var item = datosListadoGlobal.find(i => i.pedido === id);
             if(!item) return;
