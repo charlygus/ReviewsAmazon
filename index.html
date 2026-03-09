@@ -47,6 +47,7 @@
             font-size: 16px; 
             background-color: #ffffff; 
             user-select: text !important; 
+            transition: border-color 0.3s;
         }
         textarea { height: 70px; resize: vertical; }
 
@@ -87,8 +88,9 @@
         .btn-filter { background: transparent; color: #666; padding: 8px; font-size: 13px; border-radius: 5px; box-shadow: none; flex: 1; }
         .btn-filter.active { background: white; color: #007bff; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
         
-        .search-container { margin-bottom: 15px; }
-        #buscador-listado { border: 2px solid #007bff; background: #fff; padding: 10px; font-size: 15px; border-radius: 8px; }
+        .search-container { margin-bottom: 15px; display: flex; gap: 5px; }
+        #buscador-listado { border: 2px solid #007bff; background: #fff; padding: 10px; font-size: 15px; border-radius: 8px; flex: 1; }
+        .btn-sync { flex: none; width: auto; padding: 10px 15px; font-size: 16px; background: #6c757d; border-radius: 8px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
 
         .total-bar {
             background-color: #2c3e50;
@@ -196,6 +198,7 @@
 
         <div class="search-container">
             <input type="text" id="buscador-listado" placeholder="🔍 Buscar por nombre, precio o ID..." onkeyup="renderizarConFiltros()">
+            <button class="btn-sync" id="btn-forzar-sync" onclick="forzarSincronizacion()">🔄</button>
         </div>
 
         <div id="contenedor-tarjetas"><p style="text-align:center">Cargando...</p></div>
@@ -240,6 +243,19 @@
         
         var accionPendiente = "";
         var idPendiente = "";
+
+        // --- MEJORA: SISTEMA ANTI-CUELGUES (Timeout) ---
+        async function fetchWithTimeout(resource, options = {}) {
+            const { timeout = 12000 } = options;
+            const controller = new AbortController();
+            const id = setTimeout(() => controller.abort(), timeout);
+            const response = await fetch(resource, {
+                ...options,
+                signal: controller.signal
+            });
+            clearTimeout(id);
+            return response;
+        }
 
         document.addEventListener("DOMContentLoaded", function() { 
             sincronizarColorLogo();
@@ -296,7 +312,7 @@
             d.append("accion", accion); 
             d.append("pedido", id);
             
-            fetch(scriptURL, { method: 'POST', body: d })
+            fetchWithTimeout(scriptURL, { method: 'POST', body: d })
             .then(() => { 
                 accionPendiente = ""; 
                 idPendiente = "";
@@ -304,11 +320,14 @@
             })
             .catch(err => {
                 document.getElementById('loading-indicator').style.display = 'none';
-                alert("❌ Error de red: No se pudo conectar con la base de datos.");
+                if(err.name === 'AbortError') {
+                    alert("⏳ La red está muy lenta. Revisa tu conexión e inténtalo de nuevo.");
+                } else {
+                    alert("❌ Error de red: No se pudo conectar con la base de datos.");
+                }
             });
         }
 
-        // --- NUEVAS FUNCIONES DE ACCIÓN (Cobrar y Borrar) ---
         function marcarPagado(id) {
             mostrarConfirmacion(
                 "💰 Cobro Recibido",
@@ -345,15 +364,13 @@
 
         function procesarFechaString(fechaStr) {
             if(!fechaStr) return new Date(0); 
-            // Modificado: Soporte dual para fechas con barras (DD/MM/YYYY) y guiones (YYYY-MM-DD)
             if(typeof fechaStr === 'string' && fechaStr.includes('-')) {
                 var partesIso = fechaStr.split('T')[0].split('-');
                 if(partesIso[0].length === 4) return new Date(partesIso[0], partesIso[1] - 1, partesIso[2]);
             }
             var partes = fechaStr.split('/');
             if(partes.length === 3) return new Date(partes[2], partes[1] - 1, partes[0]);
-            
-            return new Date(fechaStr); // fallback general
+            return new Date(fechaStr);
         }
 
         function calcularDiasLaborables(fechaInicio, fechaFin) {
@@ -423,7 +440,7 @@
         function fetchDatosGlobales() {
             document.getElementById('loading-indicator').style.display = 'block';
             var d = new FormData(); d.append("accion", "leer");
-            return fetch(scriptURL, { method: 'POST', body: d })
+            return fetchWithTimeout(scriptURL, { method: 'POST', body: d })
                 .then(r => r.json())
                 .then(lista => {
                     datosListadoGlobal = lista;
@@ -434,11 +451,28 @@
                 })
                 .catch(err => { 
                     document.getElementById('loading-indicator').style.display = 'none';
-                    document.getElementById('contenedor-tarjetas').innerHTML = "<p style='text-align:center; color:red;'>❌ Error cargando datos. Revisa tu conexión a internet y recarga.</p>";
+                    if(err.name === 'AbortError') {
+                        document.getElementById('contenedor-tarjetas').innerHTML = "<p style='text-align:center; color:#ff9800;'>⏳ La red está inestable. Tus datos en pantalla son locales.</p>";
+                    } else {
+                        document.getElementById('contenedor-tarjetas').innerHTML = "<p style='text-align:center; color:red;'>❌ Error cargando datos. Revisa tu conexión a internet.</p>";
+                    }
                 });
         }
 
-        // Modificado: Ahora recibe el elemento HTML para evitar el error de 'event' global
+        // --- MEJORA: Botón de forzar sincronización ---
+        function forzarSincronizacion() {
+            var btn = document.getElementById('btn-forzar-sync');
+            var originalText = btn.innerText;
+            btn.innerText = "⏳";
+            fetchDatosGlobales().then(() => {
+                btn.innerText = "✅";
+                setTimeout(() => btn.innerText = originalText, 1500);
+            }).catch(() => {
+                btn.innerText = "❌";
+                setTimeout(() => btn.innerText = originalText, 1500);
+            });
+        }
+
         function cambiarModo(modo, elemento = null) {
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.form-section').forEach(f => f.classList.remove('active'));
@@ -447,7 +481,6 @@
             if(elemento) {
                 elemento.classList.add('active');
             } else {
-                // Fallback por si se llama sin el elemento (llamadas internas)
                 var tabs = document.querySelectorAll('.tab');
                 if(modo === 'nuevo' && tabs[0]) tabs[0].classList.add('active');
                 if(modo === 'actualizar' && tabs[1]) tabs[1].classList.add('active');
@@ -510,7 +543,7 @@
                     datos.append("accion", "ocr_drive");
                     datos.append("mimetype", file.type);
                     datos.append("imagen", e.target.result);
-                    fetch(scriptURL, { method: 'POST', body: datos })
+                    fetchWithTimeout(scriptURL, { method: 'POST', body: datos })
                     .then(r => r.json())
                     .then(res => {
                         estado.style.display = "none";
@@ -522,7 +555,9 @@
                         if(res.nombre) { document.getElementById("n_nombre").value = res.nombre; }
                     })
                     .catch(err => {
-                        estado.style.display = "block"; estado.innerText = "❌ Error escáner."; estado.style.color = "red";
+                        estado.style.display = "block"; 
+                        estado.innerText = (err.name === 'AbortError') ? "⏳ Red lenta. Intenta otra vez." : "❌ Error escáner."; 
+                        estado.style.color = "red";
                     });
                 };
                 reader.readAsDataURL(file);
@@ -532,7 +567,7 @@
         function cargarVendedores() {
             var sel = document.getElementById("sel_vendedores");
             var d = new FormData(); d.append("accion", "leer_vendedores");
-            fetch(scriptURL, { method: 'POST', body: d })
+            fetchWithTimeout(scriptURL, { method: 'POST', body: d })
             .then(r => r.json())
             .then(lista => {
                 sel.innerHTML = "<option value=''>Selecciona Vendedor</option>";
@@ -753,11 +788,12 @@
             d.append("precio", document.getElementById('e_precio').value);
             d.append("notas", document.getElementById('e_notas').value);
             
-            fetch(scriptURL, { method: 'POST', body: d })
+            fetchWithTimeout(scriptURL, { method: 'POST', body: d })
             .then(() => fetchDatosGlobales())
             .catch(err => {
                 document.getElementById('loading-indicator').style.display = 'none';
-                alert("❌ Error de red al intentar guardar la edición.");
+                if(err.name === 'AbortError') alert("⏳ Red inestable al editar. Reinténtalo.");
+                else alert("❌ Error de red al intentar guardar la edición.");
             });
         }
 
@@ -769,9 +805,27 @@
             });
         }
 
+        // --- MEJORA: Validación de "Dedos Rápidos" ---
         function enviarNuevo() {
             var msj = document.getElementById("mensaje");
             var btn = document.getElementById("btn-submit-nuevo");
+            var nomInput = document.getElementById("n_nombre");
+            var pedInput = document.getElementById("n_pedido");
+            
+            var nomVal = nomInput.value.trim();
+            var pedVal = pedInput.value.trim();
+
+            if(!nomVal || !pedVal) {
+                nomInput.style.borderColor = !nomVal ? "red" : "#ccc";
+                pedInput.style.borderColor = !pedVal ? "red" : "#ccc";
+                msj.innerText = "⚠️ Faltan el Producto o el Nº de Pedido.";
+                msj.style.color = "red";
+                return;
+            }
+            
+            nomInput.style.borderColor = "#ccc";
+            pedInput.style.borderColor = "#ccc";
+
             btn.disabled = true; btn.innerText = "Guardando..."; msj.innerText = "⏳ Enviando datos..."; msj.style.color = "#333";
 
             var contacto = document.getElementById("sel_vendedores").value === "OTRO" ? document.getElementById("n_contacto_manual").value : document.getElementById("sel_vendedores").value;
@@ -787,20 +841,20 @@
             if (notasExtra) { notaFinal += (notaFinal ? "\n" : "") + notasExtra; }
 
             var d = new FormData(); d.append("accion", "nuevo");
-            d.append("nombre", document.getElementById("n_nombre").value);
-            d.append("pedido", document.getElementById("n_pedido").value);
+            d.append("nombre", nomVal);
+            d.append("pedido", pedVal);
             d.append("contacto", contacto);
             d.append("precio", precioBase);
             d.append("notas", notaFinal); 
             
-            fetch(scriptURL, { method: 'POST', body: d })
+            fetchWithTimeout(scriptURL, { method: 'POST', body: d })
             .then(() => { 
                 msj.innerText = "✅ Guardado correctamente"; msj.style.color = "green";
                 limpiarCampos('nuevo'); cargarVendedores(); fetchDatosGlobales();
                 btn.disabled = false; btn.innerText = "Guardar";
             })
             .catch(error => { 
-                msj.innerText = "❌ Error al guardar. Revisa tu conexión."; 
+                msj.innerText = (error.name === 'AbortError') ? "⏳ La red está lenta. Inténtalo de nuevo." : "❌ Error al guardar. Revisa tu conexión."; 
                 msj.style.color = "red"; 
                 btn.disabled = false; 
                 btn.innerText = "Guardar"; 
@@ -816,20 +870,25 @@
             d.append("fecha", document.getElementById("a_fecha").value);
             d.append("url_review", document.getElementById("a_url_review").value);
             
-            fetch(scriptURL, { method: 'POST', body: d })
+            fetchWithTimeout(scriptURL, { method: 'POST', body: d })
             .then(() => { 
                 msj.innerText = "✅ Hecho"; msj.style.color = "green"; 
                 limpiarCampos('actualizar'); 
                 fetchDatosGlobales(); 
             })
             .catch(err => {
-                msj.innerText = "❌ Error al actualizar."; msj.style.color = "red";
+                msj.innerText = (err.name === 'AbortError') ? "⏳ Red inestable. Reinténtalo." : "❌ Error al actualizar."; 
+                msj.style.color = "red";
             });
         }
 
         function limpiarCampos(m) {
             if(m==='nuevo') { 
-                ["n_nombre", "n_pedido", "n_precio", "n_comision", "n_total", "n_notas", "n_contacto_manual"].forEach(id => document.getElementById(id).value = ""); 
+                ["n_nombre", "n_pedido", "n_precio", "n_comision", "n_total", "n_notas", "n_contacto_manual"].forEach(id => {
+                    var el = document.getElementById(id);
+                    el.value = "";
+                    el.style.borderColor = "#ccc"; // Reseteo de bordes rojos
+                }); 
                 document.getElementById("sel_vendedores").value = ""; 
                 verificarVendedorManual(); 
             }
