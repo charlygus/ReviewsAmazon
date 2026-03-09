@@ -128,9 +128,9 @@
     </div>
 
     <div class="tabs">
-        <div class="tab active" onclick="cambiarModo('nuevo')">1. ALTA</div>
-        <div class="tab" onclick="cambiarModo('actualizar')">2. REVIEW</div>
-        <div class="tab" onclick="cambiarModo('listado')">3. LISTADO</div>
+        <div class="tab active" onclick="cambiarModo('nuevo', this)">1. ALTA</div>
+        <div class="tab" onclick="cambiarModo('actualizar', this)">2. REVIEW</div>
+        <div class="tab" onclick="cambiarModo('listado', this)">3. LISTADO</div>
     </div>
 
     <div id="form-nuevo" class="form-section active">
@@ -308,6 +308,29 @@
             });
         }
 
+        // --- NUEVAS FUNCIONES DE ACCIÓN (Cobrar y Borrar) ---
+        function marcarPagado(id) {
+            mostrarConfirmacion(
+                "💰 Cobro Recibido",
+                "¿Confirmas que has recibido el pago íntegro de este producto?",
+                "Sí, cobrado",
+                "#28a745",
+                "marcar_pagado",
+                id
+            );
+        }
+
+        function borrarItem(id) {
+            mostrarConfirmacion(
+                "🗑️ Eliminar Producto",
+                "¿Estás seguro de que quieres eliminar este producto? Esta acción no se puede deshacer.",
+                "Eliminar",
+                "#dc3545",
+                "borrar",
+                id
+            );
+        }
+
         // --- FUNCIONES MATEMÁTICAS Y FECHAS ---
         function calcularTotalAlta() {
             var precio = parseFloat(document.getElementById('n_precio').value) || 0;
@@ -322,8 +345,15 @@
 
         function procesarFechaString(fechaStr) {
             if(!fechaStr) return new Date(0); 
+            // Modificado: Soporte dual para fechas con barras (DD/MM/YYYY) y guiones (YYYY-MM-DD)
+            if(typeof fechaStr === 'string' && fechaStr.includes('-')) {
+                var partesIso = fechaStr.split('T')[0].split('-');
+                if(partesIso[0].length === 4) return new Date(partesIso[0], partesIso[1] - 1, partesIso[2]);
+            }
             var partes = fechaStr.split('/');
-            return new Date(partes[2], partes[1] - 1, partes[0]);
+            if(partes.length === 3) return new Date(partes[2], partes[1] - 1, partes[0]);
+            
+            return new Date(fechaStr); // fallback general
         }
 
         function calcularDiasLaborables(fechaInicio, fechaFin) {
@@ -408,11 +438,22 @@
                 });
         }
 
-        function cambiarModo(modo) {
+        // Modificado: Ahora recibe el elemento HTML para evitar el error de 'event' global
+        function cambiarModo(modo, elemento = null) {
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.form-section').forEach(f => f.classList.remove('active'));
             document.getElementById('mensaje').innerText = "";
-            event.currentTarget.classList.add('active');
+            
+            if(elemento) {
+                elemento.classList.add('active');
+            } else {
+                // Fallback por si se llama sin el elemento (llamadas internas)
+                var tabs = document.querySelectorAll('.tab');
+                if(modo === 'nuevo' && tabs[0]) tabs[0].classList.add('active');
+                if(modo === 'actualizar' && tabs[1]) tabs[1].classList.add('active');
+                if(modo === 'listado' && tabs[2]) tabs[2].classList.add('active');
+            }
+            
             document.getElementById('form-'+modo).classList.add('active');
             
             if(modo === 'listado') {
